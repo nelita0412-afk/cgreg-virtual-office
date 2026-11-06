@@ -368,7 +368,9 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
         <planeGeometry args={[W, D]} />
         <meshStandardMaterial map={piso} color="#dfe2e7" roughness={0.45} metalness={0.02} envMapIntensity={0.5} />
       </mesh>
-      <mesh position={[0, -0.3, 0]}>
+      {/* Losa: su cara superior queda 2 cm BAJO el piso. Si coincidiera con y = 0 competiría con el piso
+          en el búfer de profundidad (z-fighting): manchas oscuras y rayas que cambian al hacer zoom. */}
+      <mesh position={[0, -0.32, 0]}>
         <boxGeometry args={[W + 0.8, 0.6, D + 0.8]} />
         <meshStandardMaterial color="#0b2350" roughness={0.6} />
       </mesh>
@@ -615,7 +617,9 @@ function MedidorFps() {
 export default function OfficeScene(props: Props) {
   // Resolución nativa: en pantallas Retina se renderiza a DPR 2 (antes 1,5 → imagen reescalada y borrosa).
   // ?calidad=baja fuerza el modo liviano (equipos modestos o navegadores sin aceleración gráfica).
-  const baja = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('calidad') === 'baja';
+  const modo = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('calidad') : null;
+  const baja = modo === 'baja';
+  const fija = modo === 'alta' || baja; // ?calidad=alta|baja: sin ajuste automático
   const dprMax = baja ? 1 : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
   const [dpr, setDpr] = useState(dprMax);
   const [sombras, setSombras] = useState(!baja);
@@ -634,16 +638,17 @@ export default function OfficeScene(props: Props) {
         onCreated={({ gl }) => gl.setClearColor('#04102b')}
         aria-label="Oficina virtual isométrica"
       >
-        {/* Calidad adaptativa: baja la resolución en pasos pequeños solo si los FPS caen de forma sostenida */}
-        <PerformanceMonitor
+        {/* Calidad adaptativa: baja la resolución en pasos pequeños solo si los FPS caen de forma sostenida.
+            Tras dos cambios de sentido se fija (flipflops) para no alternar resoluciones: eso se percibe como parpadeo. */}
+        {!fija && <PerformanceMonitor
           bounds={() => [28, 55]}
-          flipflops={4}
+          flipflops={2}
           onDecline={() => {
             if (dpr > 1.25) setDpr((d) => Math.max(1, +(d - 0.25).toFixed(2)));
             else setSombras(false);
           }}
           onIncline={() => setDpr((d) => Math.min(dprMax, +(d + 0.25).toFixed(2)))}
-        />
+        />}
         <MedidorFps />
         <fog attach="fog" args={['#04102b', 160, 320]} />
         <Suspense fallback={null}>
