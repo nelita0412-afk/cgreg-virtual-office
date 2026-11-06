@@ -61,13 +61,16 @@ const s1 = (await c.query(`insert into ops.servidores (clave_fuente, nombre, cod
 const browser = await chromium.launch();
 async function sesion(email, viewport = { width: 1600, height: 1000 }) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+  // Solo Coordinación renderiza la oficina 3D: los profesionales usan la vista de lista (misma conexión
+  // WebSocket real) para que siete navegadores con renderizado por software no agoten la CPU.
+  if (!email.startsWith('coord')) await ctx.addInitScript(() => localStorage.setItem('cgreg.vista', 'lista'));
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error(`[${email}] pageerror:`, e.message));
   await page.goto(BASE);
   await page.fill('input[type=email]', email);
   await page.fill('input[type=password]', PASS);
   await page.click('button:has-text("Ingresar")');
-  await page.waitForSelector('text=Profesional seleccionado', { timeout: 20000 });
+  await page.waitForSelector('[aria-label="Indicadores en tiempo real"]', { timeout: 20000 });
   const api = async (method, url, body) => {
     const r = await page.evaluate(
       async ([method, url, body]) => {
@@ -157,7 +160,7 @@ try {
   await mp.fill('input[type=email]', 'coord@prueba.local');
   await mp.fill('input[type=password]', PASS);
   await mp.click('button:has-text("Ingresar")');
-  await mp.waitForSelector('text=Profesional seleccionado');
+  await mp.waitForSelector('[aria-label="Indicadores en tiempo real"]');
   await sleep(1500);
   const overflow = await mp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   check(!overflow, 'Sin desplazamiento horizontal en móvil');
@@ -165,6 +168,8 @@ try {
 
   // Formulario «Solicitar apoyo a Coordinación» desde el panel del profesional (interfaz)
   const antes = (await coord.api('GET', '/api/notificaciones')).no_leidas;
+  // El panel contextual inicia cerrado (más espacio para la oficina): se abre como lo haría la usuaria.
+  await pros.maria.page.click('button[aria-label="Mostrar panel"]');
   await pros.maria.page.click('button:has-text("Solicitar apoyo a Coordinación")');
   await pros.maria.page.selectOption('select >> nth=0', 'solicitud_informacion');
   await pros.maria.page.fill('textarea >> nth=0', 'Necesito el directorio de unidades educativas (prueba)');

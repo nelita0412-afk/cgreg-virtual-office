@@ -1,14 +1,14 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Users, Wifi, CheckCircle2, Stethoscope, UsersRound, CalendarDays, CalendarClock, Share2, Activity, BarChart3, CalendarRange, LayoutGrid, Box, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Users, Wifi, CheckCircle2, Stethoscope, UsersRound, CalendarDays, CalendarClock, Share2, Activity, BarChart3, CalendarRange, LayoutGrid, Box, ZoomIn, ZoomOut, Maximize2, Minimize2, Home, PanelRightClose, PanelRightOpen, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { ProfesionalPanel } from '../components/ProfesionalPanel';
 import { EstadoPill, Spinner, Empty, Avatar } from '../components/ui';
 import { fHora, fFechaHora } from '../lib/format';
 import { ROOMS, ZONES_ABIERTAS, type V2 } from '../office/layout';
-import type { Foco } from '../office/Scene';
+import { useCalidad, type Foco } from '../office/Scene';
 import { ESTADO_PRESENCIA_COLOR, ESTADO_PRESENCIA_LABEL, type EventoPublico, type PresenciaSnapshot, type Zona } from '@shared/domain';
 
 const OfficeScene = lazy(() => import('../office/Scene'));
@@ -35,11 +35,12 @@ function usePrefiereMenosMovimiento() {
 }
 
 const VISTAS: { id: string; label: string; target: V2; zoom: number; ruta?: string }[] = [
-  { id: 'general', label: 'Vista general', target: [0, 0], zoom: 1 },
+  { id: 'general', label: 'Vista general', target: [0, -1], zoom: 1 },
   { id: 'coordinacion', label: 'Coordinación', ...ZONES_ABIERTAS.coordinacion.vista, ruta: ZONES_ABIERTAS.coordinacion.ruta },
   { id: 'psicologia', label: 'Psicología Clínica', ...ZONES_ABIERTAS.psicologia.vista, ruta: '/equipo' },
   ...ROOMS.map((r) => ({ id: r.id, label: r.nombre, ...r.vista, ruta: r.ruta })),
   { id: 'territorial', label: 'Territorial', ...ZONES_ABIERTAS.territorial.vista, ruta: ZONES_ABIERTAS.territorial.ruta },
+  { id: 'descanso', label: 'Pausa', ...ZONES_ABIERTAS.descanso.vista },
 ];
 
 const ZONA_TXT: Record<Zona, string> = {
@@ -57,12 +58,10 @@ const ZONA_TXT: Record<Zona, string> = {
 
 function Kpi({ icon: Icon, valor, label, color }: { icon: typeof Users; valor: number | string | null | undefined; label: string; color: string }) {
   return (
-    <div className="panel flex min-w-[128px] items-center gap-3 px-3 py-2.5">
-      <Icon size={26} style={{ color }} aria-hidden />
-      <div className="leading-tight">
-        <div className="text-2xl font-semibold tabular-nums">{valor ?? '—'}</div>
-        <div className="text-[12px] muted">{label}</div>
-      </div>
+    <div className="flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1.5" style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}>
+      <Icon size={17} style={{ color }} aria-hidden />
+      <span className="text-lg font-semibold tabular-nums leading-none">{valor ?? '—'}</span>
+      <span className="text-[11.5px] leading-tight muted">{label}</span>
     </div>
   );
 }
@@ -80,6 +79,76 @@ function Anillo({ valor, max, etiqueta, color, sufijo = '' }: { valor: number | 
       </svg>
       <figcaption className="max-w-[110px] text-center text-[11px] leading-tight muted">{etiqueta}</figcaption>
     </figure>
+  );
+}
+
+/** Sala o zona → zona de presencia y profesionales de referencia (para el panel contextual). */
+const SALA_ZONA: Record<string, { zona: Zona; profesionales?: (p: PresenciaSnapshot) => boolean }> = {
+  debriefing: { zona: 'debriefing' },
+  capacitacion: { zona: 'capacitacion' },
+  psiquiatria: { zona: 'psiquiatria', profesionales: (p) => p.especialidad === 'psiquiatria' },
+  telemedicina: { zona: 'telemedicina', profesionales: (p) => p.especialidad === 'telemedicina' },
+  consultorios: { zona: 'consultorio_psicologia', profesionales: (p) => p.especialidad === 'psicologia' && p.es_teleatencion },
+  psicologia: { zona: 'estacion', profesionales: (p) => p.especialidad === 'psicologia' && p.es_teleatencion },
+  coordinacion: { zona: 'coordinacion', profesionales: (p) => p.rol === 'coordinacion' },
+  territorial: { zona: 'territorial', profesionales: (p) => !p.es_teleatencion && p.rol !== 'coordinacion' },
+  descanso: { zona: 'descanso' },
+};
+
+function SalaPanel({ id, lista, actividades, onSelect }: { id: string; lista: PresenciaSnapshot[]; actividades: any[]; onSelect: (c: string) => void }) {
+  const nav = useNavigate();
+  const room = ROOMS.find((r) => r.id === id);
+  const abierta = (ZONES_ABIERTAS as Record<string, { nombre: string; ruta?: string; descripcion: string }>)[id];
+  const info = room ? { nombre: room.nombre + (room.sub ? ` (${room.sub})` : ''), ruta: room.ruta, descripcion: room.descripcion, color: room.color } : { ...abierta, color: '#1d4ed8' };
+  const map = SALA_ZONA[id];
+  const presentes = lista.filter((p) => p.conectado && map && p.zona === map.zona);
+  const asignados = map?.profesionales ? lista.filter(map.profesionales) : [];
+  const acts = actividades.filter((a) => (id === 'debriefing' && a.tipo === 'debriefing') || (id === 'capacitacion' && a.tipo === 'capacitacion'));
+  const fila = (p: PresenciaSnapshot) => (
+    <li key={p.clave}>
+      <button className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5" onClick={() => onSelect(p.clave)}>
+        <Avatar nombre={p.nombre} color={p.color} size={30} />
+        <span className="min-w-0 flex-1 truncate text-sm">{p.nombre}</span>
+        <EstadoPill estado={p.estado} size="sm" />
+      </button>
+    </li>
+  );
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <div>
+        <div className="mb-1 h-1.5 w-12 rounded-full" style={{ background: info.color }} />
+        <h3 className="text-[17px] font-semibold text-white">{info.nombre}</h3>
+        <p className="mt-1 text-sm muted">{info.descripcion}</p>
+      </div>
+      <div>
+        <div className="label">Actividad ahora</div>
+        {presentes.length ? <ul>{presentes.map(fila)}</ul> : <p className="text-sm faint">Sin actividad en este momento.</p>}
+      </div>
+      {asignados.length > 0 && (
+        <div>
+          <div className="label">Profesionales del área</div>
+          <ul>{asignados.map(fila)}</ul>
+        </div>
+      )}
+      {acts.length > 0 && (
+        <div>
+          <div className="label">Próximas actividades</div>
+          <ul className="space-y-1 text-sm">{acts.map((a) => <li key={a.id}>{fFechaHora(a.inicio)} · {a.titulo}</li>)}</ul>
+        </div>
+      )}
+      {info.ruta && <button className="btn-primary" onClick={() => nav(info.ruta!)}>Abrir módulo</button>}
+    </div>
+  );
+}
+
+function IndicadorCalidad() {
+  const v = useCalidad();
+  const [fps, dpr, nivel] = v.split('|');
+  if (fps === '0') return null;
+  return (
+    <span className="chip bg-slate-950/70 text-[10.5px] tabular-nums text-slate-300" title="FPS medidos en este navegador y resolución de renderizado aplicada (calidad adaptativa)">
+      {fps} FPS · {nivel === 'alta' ? 'Calidad alta' : nivel === 'media' ? 'Calidad media' : 'Calidad reducida'} · DPR {dpr}
+    </span>
   );
 }
 
@@ -111,11 +180,21 @@ export default function Oficina() {
 
   const lista = presencia.data ?? [];
   const [sel, setSel] = useState<string | null>(null);
+  const [sala, setSala] = useState<string | null>(null);
+  const [panel, setPanel] = useState(false);
   const yo = lista.find((p) => p.usuario_id === me?.id);
   const clave = sel ?? yo?.clave ?? lista[0]?.clave ?? null;
   const seleccion = lista.find((p) => p.clave === clave) ?? null;
-  const [foco, setFoco] = useState<Foco>({ target: [0, 0], zoom: 1, key: 0 });
+  const [foco, setFoco] = useState<Foco>({ target: [0, -1], zoom: 1, key: 0 });
   const [vista, setVista] = useState('general');
+  const contenedor = useRef<HTMLDivElement>(null);
+  const [completa, setCompleta] = useState(false);
+  useEffect(() => {
+    const f = () => setCompleta(document.fullscreenElement === contenedor.current);
+    document.addEventListener('fullscreenchange', f);
+    return () => document.removeEventListener('fullscreenchange', f);
+  }, []);
+  const pantallaCompleta = () => (document.fullscreenElement ? document.exitFullscreen() : contenedor.current?.requestFullscreen?.());
 
   const enfocar = (id: string) => {
     const v = VISTAS.find((x) => x.id === id);
@@ -123,13 +202,28 @@ export default function Oficina() {
     setVista(id);
     setFoco((f) => ({ target: v.target, zoom: v.zoom, key: f.key + 1 }));
   };
-  const zoomRel = (k: number) => setFoco((f) => ({ ...f, zoom: Math.max(0.7, Math.min(5, f.zoom * k)), key: f.key + 1 }));
+  const seleccionar = (c: string, pos?: V2) => {
+    setSel(c);
+    setSala(null);
+    setPanel(true);
+    const p = pos ?? (() => {
+      const r = (window as any).__cgregOffice?.avatares?.()[c];
+      return r?.visible ? ([r.x, r.z] as V2) : undefined;
+    })();
+    if (p) setFoco((f) => ({ target: p, zoom: Math.max(f.zoom, 3.5), key: f.key + 1 }));
+  };
+  const abrirSala = (id: string) => {
+    setSala(id);
+    setPanel(true);
+    enfocar(id);
+  };
+  const zoomRel = (k: number) => setFoco((f) => ({ ...f, zoom: Math.max(0.85, Math.min(9, f.zoom * k)), key: f.key + 1 }));
   const r = resumen.data;
 
   return (
-    <div className="flex flex-col gap-3 p-3 sm:p-4">
-      {/* indicadores superiores */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scroll-thin" aria-label="Indicadores en tiempo real">
+    <div className="flex flex-col gap-2 p-2 sm:p-3">
+      {/* indicadores compactos */}
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 scroll-thin" aria-label="Indicadores en tiempo real">
         <Kpi icon={Users} valor={r?.profesionales} label="Profesionales" color="#60a5fa" />
         <Kpi icon={Wifi} valor={r?.conectados} label="Conectados" color="#22c55e" />
         <Kpi icon={CheckCircle2} valor={r?.disponibles} label="Disponibles" color="#22c55e" />
@@ -140,86 +234,98 @@ export default function Oficina() {
         <Kpi icon={Share2} valor={r?.derivaciones_pendientes} label="Derivaciones pendientes" color="#c084fc" />
       </div>
 
-      <div className="grid min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="panel relative flex min-h-[420px] flex-col overflow-hidden p-0 xl:h-[min(64vh,680px)]">
-          <div className="flex flex-wrap items-center gap-1.5 border-b p-2" style={{ borderColor: 'var(--line)' }}>
-            <div className="flex flex-1 gap-1 overflow-x-auto scroll-thin" role="toolbar" aria-label="Navegación por departamentos">
-              {VISTAS.map((v) => (
-                <button key={v.id} onClick={() => (modo === '3d' ? enfocar(v.id) : v.ruta && nav(v.ruta))} className={`shrink-0 rounded-lg px-2.5 py-1 text-xs transition ${vista === v.id && modo === '3d' ? 'bg-sky-600/50 text-white' : 'muted hover:bg-white/5'}`}>
-                  {v.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {modo === '3d' && (
-                <>
-                  <button className="btn-ghost btn-sm" onClick={() => zoomRel(1.25)} aria-label="Acercar"><ZoomIn size={14} /></button>
-                  <button className="btn-ghost btn-sm" onClick={() => zoomRel(0.8)} aria-label="Alejar"><ZoomOut size={14} /></button>
-                  <button className="btn-ghost btn-sm" onClick={() => enfocar('general')} aria-label="Vista general"><Maximize2 size={14} /></button>
-                </>
-              )}
-              <button className="btn-ghost btn-sm" onClick={() => setModo(modo === '3d' ? 'lista' : '3d')} disabled={!webgl && modo === 'lista'} title={webgl ? '' : 'Este dispositivo no soporta WebGL'}>
-                {modo === '3d' ? <><LayoutGrid size={14} /> Vista lista</> : <><Box size={14} /> Vista 3D</>}
+      <div
+        ref={contenedor}
+        className="relative overflow-hidden rounded-2xl border"
+        style={{ borderColor: 'var(--line)', background: '#04102b', height: completa ? '100vh' : 'max(520px, calc(100vh - 128px))' }}
+      >
+        {presencia.isLoading ? (
+          <Spinner label="Cargando oficina…" />
+        ) : modo === '3d' && webgl ? (
+          <Suspense fallback={<Spinner label="Preparando entorno 3D…" />}>
+            <OfficeScene presencia={lista} seleccionado={sala ? null : clave} onSelect={seleccionar} onZona={abrirSala} foco={foco} reducirMovimiento={reducir} reservaDerecha={panel ? 356 : 0} />
+          </Suspense>
+        ) : (
+          <div className="h-full overflow-y-auto pt-12"><OfficeList lista={lista} onSelect={(c) => seleccionar(c)} seleccionado={clave} /></div>
+        )}
+
+        {/* barra superior flotante: departamentos y controles */}
+        <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-wrap items-start gap-2">
+          <div className="pointer-events-auto flex max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border bg-slate-950/75 p-1 backdrop-blur scroll-thin" style={{ borderColor: 'var(--line)' }} role="toolbar" aria-label="Navegación por departamentos">
+            {VISTAS.map((v) => (
+              <button key={v.id} onClick={() => (modo === '3d' ? (v.id === 'general' ? enfocar('general') : abrirSala(v.id)) : v.ruta && nav(v.ruta))} className={`shrink-0 rounded-lg px-2.5 py-1 text-xs transition ${vista === v.id && modo === '3d' ? 'bg-sky-600/60 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+                {v.label}
               </button>
-            </div>
+            ))}
           </div>
-          {presencia.isLoading ? (
-            <Spinner label="Cargando oficina…" />
-          ) : modo === '3d' && webgl ? (
-            <div className="relative min-h-[380px] flex-1">
-              <Suspense fallback={<Spinner label="Preparando entorno 3D…" />}>
-                <OfficeScene presencia={lista} seleccionado={clave} onSelect={setSel} onZona={(id) => enfocar(id)} foco={foco} reducirMovimiento={reducir} />
-              </Suspense>
-              {/* lista accesible por teclado de las personas en la oficina */}
-              <ul className="sr-only">
-                {lista.map((p) => (
-                  <li key={p.clave}><button onClick={() => setSel(p.clave)}>{p.nombre}: {p.estado}</button></li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <OfficeList lista={lista} onSelect={setSel} seleccionado={clave} />
-          )}
-          {modo === '3d' && webgl && (
-            <div className="flex flex-wrap gap-1.5 border-t px-2 py-1.5 text-[11px]" style={{ borderColor: 'var(--line)' }} aria-label="Leyenda de estados">
-              {(['disponible', 'en_consulta', 'en_documentacion', 'en_reunion', 'en_pausa', 'desconectado', 'fuera_de_horario'] as const).map((e) => (
-                <span key={e} className="chip bg-white/5"><span className="h-2 w-2 rounded-full" style={{ background: ESTADO_PRESENCIA_COLOR[e] }} />{ESTADO_PRESENCIA_LABEL[e]}</span>
-              ))}
-            </div>
-          )}
+          <div className="pointer-events-auto flex gap-1 rounded-xl border bg-slate-950/75 p-1 backdrop-blur" style={{ borderColor: 'var(--line)' }}>
+            {modo === '3d' && (
+              <>
+                <button className="btn-ghost btn-sm" onClick={() => zoomRel(1.25)} aria-label="Acercar"><ZoomIn size={14} /></button>
+                <button className="btn-ghost btn-sm" onClick={() => zoomRel(0.8)} aria-label="Alejar"><ZoomOut size={14} /></button>
+                <button className="btn-ghost btn-sm" onClick={() => enfocar('general')} aria-label="Vista general"><Home size={14} /></button>
+              </>
+            )}
+            <button className="btn-ghost btn-sm" onClick={pantallaCompleta} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'}>{completa ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
+            <button className="btn-ghost btn-sm" onClick={() => setModo(modo === '3d' ? 'lista' : '3d')} disabled={!webgl && modo === 'lista'}>
+              {modo === '3d' ? <><LayoutGrid size={14} /> Lista</> : <><Box size={14} /> 3D</>}
+            </button>
+            <button className="btn-ghost btn-sm" onClick={() => setPanel(!panel)} aria-label={panel ? 'Ocultar panel' : 'Mostrar panel'}>{panel ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}</button>
+          </div>
         </div>
-        <aside className="panel overflow-y-auto scroll-thin xl:h-[min(64vh,680px)]" aria-label="Profesional seleccionado">
-          <div className="border-b px-4 py-3 text-[15px] font-semibold" style={{ borderColor: 'var(--line)' }}>Profesional seleccionado</div>
-          <ProfesionalPanel seleccion={seleccion} />
-        </aside>
+
+        {/* leyenda y calidad */}
+        {modo === '3d' && webgl && (
+          <div className="pointer-events-none absolute bottom-2 left-2 flex max-w-[70%] flex-wrap gap-1 text-[10.5px]" aria-label="Leyenda de estados">
+            {(['disponible', 'en_consulta', 'en_documentacion', 'en_reunion', 'en_pausa', 'desconectado', 'fuera_de_horario'] as const).map((e) => (
+              <span key={e} className="chip bg-slate-950/70 text-slate-200"><span className="h-2 w-2 rounded-full" style={{ background: ESTADO_PRESENCIA_COLOR[e] }} />{ESTADO_PRESENCIA_LABEL[e]}</span>
+            ))}
+            <IndicadorCalidad />
+          </div>
+        )}
+
+        {/* panel contextual (profesional o sala) */}
+        {panel && (
+          <aside className="absolute bottom-2 right-2 top-14 flex w-[min(340px,calc(100%-16px))] flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur" style={{ borderColor: 'var(--line)', background: 'rgba(6,22,51,0.92)' }} aria-label="Panel contextual">
+            <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: 'var(--line)' }}>
+              <span className="text-[14px] font-semibold">{sala ? 'Departamento' : 'Profesional seleccionado'}</span>
+              <button className="rounded-md p-1 hover:bg-white/10" onClick={() => setPanel(false)} aria-label="Cerrar panel"><X size={15} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto scroll-thin">
+              {sala ? <SalaPanel id={sala} lista={lista} actividades={r?.proximas_actividades ?? []} onSelect={(c) => seleccionar(c)} /> : <ProfesionalPanel seleccion={seleccion} />}
+            </div>
+          </aside>
+        )}
+        <ul className="sr-only">
+          {lista.map((p) => (
+            <li key={p.clave}><button onClick={() => seleccionar(p.clave)}>{p.nombre}: {ESTADO_PRESENCIA_LABEL[p.estado]}</button></li>
+          ))}
+        </ul>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
-        <section className="panel p-4" aria-live="polite">
-          <h2 className="panel-title mb-2 flex items-center gap-2"><Activity size={18} className="text-cyan-300" /> Actividad de la Brigada <span className="text-xs font-normal muted">(tiempo real)</span></h2>
-          <ul className="max-h-48 space-y-1.5 overflow-y-auto pr-1 text-sm scroll-thin">
+      <div className="grid gap-2 lg:grid-cols-3">
+        <section className="panel p-3" aria-live="polite">
+          <h2 className="panel-title mb-2 flex items-center gap-2"><Activity size={17} className="text-cyan-300" /> Actividad de la Brigada <span className="text-xs font-normal muted">(tiempo real)</span></h2>
+          <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1 text-sm scroll-thin">
             {(eventos.data ?? []).length === 0 && <li className="faint">Aún no hay actividad registrada.</li>}
             {(eventos.data ?? []).map((e) => (
-              <li key={e.id} className="flex gap-3">
-                <span className="w-11 shrink-0 tabular-nums muted">{fHora(e.ts)}</span>
-                <span>{e.texto}</span>
-              </li>
+              <li key={e.id} className="flex gap-3"><span className="w-11 shrink-0 tabular-nums muted">{fHora(e.ts)}</span><span>{e.texto}</span></li>
             ))}
           </ul>
         </section>
-        <section className="panel p-4">
+        <section className="panel p-3">
           <h2 className="panel-title mb-2 flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2"><BarChart3 size={18} className="text-cyan-300" /> Resumen del día</span>
+            <span className="flex items-center gap-2"><BarChart3 size={17} className="text-cyan-300" /> Resumen del día</span>
             <span className="text-[11px] font-normal muted">Actualizado: {r ? fHora(r.actualizado) : '—'}</span>
           </h2>
           <div className="flex flex-wrap justify-around gap-2">
             <Anillo valor={r?.atendidas_hoy ?? null} max={Math.max(1, r?.atenciones_hoy ?? 0)} etiqueta="Atenciones realizadas hoy" color="#22c55e" />
             <Anillo valor={r?.cumplimiento_agenda_hoy ?? null} max={100} sufijo="%" etiqueta="Cumplimiento de agenda hoy" color="#3b82f6" />
-            <Anillo valor={r?.derivaciones_activas ?? null} max={Math.max(1, r?.derivaciones_activas ?? 0)} etiqueta="Derivaciones activas a Psiquiatría" color="#a855f7" />
+            <Anillo valor={r?.derivaciones_activas ?? null} max={Math.max(1, r?.derivaciones_activas ?? 0)} etiqueta="Derivaciones activas" color="#a855f7" />
           </div>
         </section>
-        <section className="panel p-4">
-          <h2 className="panel-title mb-2 flex items-center gap-2"><CalendarRange size={18} className="text-cyan-300" /> Próximas actividades</h2>
+        <section className="panel p-3">
+          <h2 className="panel-title mb-2 flex items-center gap-2"><CalendarRange size={17} className="text-cyan-300" /> Próximas actividades</h2>
           {(r?.proximas_actividades ?? []).length === 0 ? (
             <Empty>Sin debriefings ni capacitaciones programadas.</Empty>
           ) : (

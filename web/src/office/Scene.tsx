@@ -1,12 +1,17 @@
-import { Suspense, useMemo, useRef, useState, useEffect } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, MapControls, OrthographicCamera, PerformanceMonitor, RoundedBox } from '@react-three/drei';
+import { Environment, Lightformer, MapControls, OrthographicCamera, PerformanceMonitor } from '@react-three/drei';
 import * as THREE from 'three';
 import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import { ESTADO_PRESENCIA_COLOR, ESTADO_PRESENCIA_LABEL, type PresenciaSnapshot, type Zona } from '@shared/domain';
-import { Avatar } from './Avatar';
-import { Chair, Desk, GlassRoom, Plant, Sofa, useFloorTexture, useVentanalTexture, WOOD } from './Furniture';
-import { CABINAS, ESTACIONES_PSI, ROOMS, ZONES_ABIERTAS, slotPara, type V2 } from './layout';
+import { Human, registroAvatares } from './Human';
+import {
+  Escritorio, Estanteria, Planta, SalaCristal, Silla, Sofa, useAlfombra, useCanvasTexture, useMateriales, useParquet, usePantallas, usePorcelanato,
+  useTextoTextura, useVentanal, type Mats,
+} from './Furniture';
+import { CABINAS, ESTACIONES_PSI, PISO, ROOMS, ZONES_ABIERTAS, slotPara, type V2 } from './layout';
+import { etiquetasStore, ubicarEtiquetas, type Anclaje } from './labels';
+import { Fusionar } from './Fusionar';
 
 export interface Foco {
   target: V2;
@@ -17,61 +22,70 @@ export interface Foco {
 interface Props {
   presencia: PresenciaSnapshot[];
   seleccionado: string | null;
-  onSelect: (clave: string) => void;
+  onSelect: (clave: string, pos?: V2) => void;
   onZona: (id: string) => void;
   foco: Foco;
   reducirMovimiento: boolean;
+  reservaDerecha?: number;
 }
 
-const W = 48;
-const D = 34;
-
-function Etiqueta({ position, children, color = '#0b2350', onClick }: { position: [number, number, number]; children: React.ReactNode; color?: string; onClick?: () => void }) {
-  return (
-    <Html position={position} center zIndexRange={[10, 0]} className="office-label">
-      <button
-        onClick={onClick}
-        className="rounded-xl border border-white/25 px-3 py-1 text-[12px] font-semibold text-white shadow-xl backdrop-blur"
-        style={{ background: `linear-gradient(180deg, ${color}ee, #061633ee)` }}
-      >
-        {children}
-      </button>
-    </Html>
+/** Calidad adaptativa observable (FPS medidos y nivel de calidad aplicado). */
+const calidad = { fps: 0, dpr: 1, sombras: true, nivel: 'alta' as 'alta' | 'media' | 'baja' };
+const subsCalidad = new Set<() => void>();
+const publicarCalidad = () => subsCalidad.forEach((f) => f());
+export function useCalidad() {
+  return useSyncExternalStore(
+    (f) => {
+      subsCalidad.add(f);
+      return () => {
+        subsCalidad.delete(f);
+      };
+    },
+    () => `${calidad.fps}|${calidad.dpr}|${calidad.nivel}`,
   );
 }
 
-function Placa({ position, p, onSelect }: { position: [number, number, number]; p?: PresenciaSnapshot; onSelect: () => void }) {
-  if (!p) return null;
-  const nombre = p.nombre.replace(/^Dr\.\s*/, '').replace(/\s+[A-Z]\.$/, '');
-  return (
-    <Html position={position} center zIndexRange={[10, 0]} className="office-label">
-      <button onClick={onSelect} className="w-[132px] whitespace-normal rounded-xl bg-white/95 px-2 py-1 text-center shadow-xl ring-1 ring-slate-300" aria-label={`${p.nombre}: ${ESTADO_PRESENCIA_LABEL[p.estado]}`}>
-        <div className="line-clamp-2 text-[11px] font-bold leading-tight text-slate-900">{nombre}</div>
-        <div className="mt-0.5 flex items-center justify-center gap-1 whitespace-nowrap text-[10px] font-medium text-slate-700">
-          <span className="h-2 w-2 rounded-full" style={{ background: ESTADO_PRESENCIA_COLOR[p.estado] }} />
-          {ESTADO_PRESENCIA_LABEL[p.estado]}
-        </div>
-      </button>
-    </Html>
-  );
-}
+const W = PISO.w;
+const D = PISO.d;
+const AZ = Math.atan2(13, 36);
+// Zoom 1 = la oficina completa encuadrada. Con la cámara isométrica (13, 30, 36) el piso de 64x40 m
+// más los muros proyecta ~74 x 40 unidades; se suma margen y se descuenta la barra superior (52 px).
+export const baseZoom = (w: number, h: number) => Math.min((w - 16) / 76, (h - 60) / 42);
+const iniciales = (n: string) =>
+  n
+    .replace(/^(Dr\.|Dra\.|DEMO ·)\s*/i, '')
+    .split(/\s+/)
+    .filter((w) => /^\p{Lu}/u.test(w) && !/^\p{Lu}\.$/u.test(w))
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
 
-/** Cámara isométrica: zoom base adaptado al tamaño del lienzo y transiciones suaves de foco. */
-function CameraRig({ foco, controls }: { foco: Foco; controls: React.RefObject<MapControlsImpl> }) {
+/* ------------------------------------ Cámara ------------------------------------ */
+function CameraRig({ foco, controls, reserva = 0 }: { foco: Foco; controls: React.RefObject<MapControlsImpl>; reserva?: number }) {
   const { size, camera } = useThree();
   const base = baseZoom(size.width, size.height);
   const anim = useRef<{ to: THREE.Vector3; zoom: number } | null>(null);
   useEffect(() => {
-    anim.current = { to: new THREE.Vector3(foco.target[0], 0, foco.target[1]), zoom: base * foco.zoom };
-  }, [foco.key, base]); // eslint-disable-line react-hooks/exhaustive-deps
+    const zoom = base * foco.zoom;
+    const to = new THREE.Vector3(foco.target[0], 0, foco.target[1]);
+    // Con el panel lateral abierto, el punto de interés se centra en el área visible (a la izquierda del
+    // panel): se desplaza el objetivo hacia la derecha de la pantalla la mitad del ancho reservado.
+    if (reserva > 0) {
+      const derecha = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+      derecha.y = 0; // en la cámara isométrica el eje derecho ya es horizontal: 1 unidad = zoom px
+      derecha.normalize().multiplyScalar(reserva / 2 / zoom);
+      to.add(derecha);
+    }
+    anim.current = { to, zoom };
+  }, [foco.key, base, reserva]); // eslint-disable-line react-hooks/exhaustive-deps
   useFrame((_, dt) => {
     const c = controls.current;
     if (!c) return;
     const a = anim.current;
     const cam = camera as THREE.OrthographicCamera;
     if (a) {
-      // Interpolación basada en tiempo: converge igual a 60 FPS o en equipos lentos.
-      const k = 1 - Math.exp(-Math.min(dt, 0.25) * 7);
+      const k = 1 - Math.exp(-Math.min(dt, 0.25) * 6);
       const delta = a.to.clone().sub(c.target).multiplyScalar(k);
       c.target.add(delta);
       cam.position.add(delta);
@@ -80,7 +94,6 @@ function CameraRig({ foco, controls }: { foco: Foco; controls: React.RefObject<M
       c.update();
       if (a.to.distanceTo(c.target) < 0.01 && Math.abs(a.zoom - cam.zoom) < 0.01) anim.current = null;
     }
-    // límites de desplazamiento
     const t = c.target;
     const cx = THREE.MathUtils.clamp(t.x, -W / 2, W / 2);
     const cz = THREE.MathUtils.clamp(t.z, -D / 2, D / 2);
@@ -89,332 +102,557 @@ function CameraRig({ foco, controls }: { foco: Foco; controls: React.RefObject<M
       cam.position.z += cz - t.z;
       t.set(cx, 0, cz);
     }
-    c.minZoom = base * 0.7;
-    c.maxZoom = base * 5;
+    c.minZoom = base * 0.85;
+    c.maxZoom = base * 9;
   });
   return null;
 }
 
-const baseZoom = (w: number, h: number) => Math.min(w / 50, h / 33);
-const AZ = Math.atan2(12, 38);
-
-function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimiento }: Props) {
-  const floor = useFloorTexture();
-  const ventanal = useVentanalTexture();
-  const controls = useRef<MapControlsImpl>(null!);
-  const [hover, setHover] = useState<string | null>(null);
+/* ----------------------------- Proyección de etiquetas ----------------------------- */
+function Anclajes({ presencia }: { presencia: PresenciaSnapshot[] }) {
   const { camera, size } = useThree();
-  const [zoomRel, setZoomRel] = useState(1);
-  useFrame(() => {
-    const base = baseZoom(size.width, size.height);
-    const z = (camera as THREE.OrthographicCamera).zoom / base;
-    if (Math.abs(z - zoomRel) > 0.15) setZoomRel(z);
+  const acc = useRef(0);
+  const v = useMemo(() => new THREE.Vector3(), []);
+  const salas = useMemo(
+    () => [
+      ...ROOMS.map((r) => ({ id: r.id, nombre: r.nombre + (r.sub ? ` (${r.sub})` : ''), color: r.color, p: [r.center[0], 3.4, r.center[1] - r.size[1] / 2 + 0.2] as const })),
+      { id: 'coordinacion', nombre: ZONES_ABIERTAS.coordinacion.nombre, color: '#123170', p: [0, 2.6, -3.2] as const },
+      { id: 'territorial', nombre: ZONES_ABIERTAS.territorial.nombre, color: '#9a3412', p: [10.5, 2.9, -3.4] as const },
+      { id: 'psicologia', nombre: ZONES_ABIERTAS.psicologia.nombre, color: '#1d4ed8', p: [-30, 2.4, 9.6] as const },
+    ],
+    [],
+  );
+  useFrame((_, dt) => {
+    acc.current += dt;
+    if (acc.current < 0.08) return;
+    acc.current = 0;
+    const proy = (x: number, y: number, z: number) => {
+      v.set(x, y, z).project(camera);
+      return { x: ((v.x + 1) / 2) * size.width, y: ((1 - v.y) / 2) * size.height, ok: v.z < 1 && v.x > -1.05 && v.x < 1.05 && v.y > -1.05 && v.y < 1.05 };
+    };
+    const anclajes: Anclaje[] = [];
+    for (const p of presencia) {
+      const r = registroAvatares.get(p.clave);
+      let pos: { x: number; y: number; ok: boolean };
+      if (r?.visible) {
+        pos = proy(r.x, 1.3 * (r.sentado > 0.5 ? 1.42 : 1.95) + 0.12, r.z);
+      } else {
+        const s = slotPara(p, 'estacion', 0);
+        if (!s || !p.profesional_id) continue;
+        pos = proy(s.pos[0], 1.3, s.pos[1]);
+      }
+      anclajes.push({
+        id: p.clave,
+        tipo: 'persona',
+        x: pos.x,
+        y: pos.y,
+        visible: pos.ok,
+        completo: p.nombre.replace(/^Dr\.\s*/, '').replace(/\s+\p{Lu}\.$/u, ''),
+        detalle: ESTADO_PRESENCIA_LABEL[p.estado],
+        corto: iniciales(p.nombre) || p.nombre.slice(0, 2),
+        color: ESTADO_PRESENCIA_COLOR[p.estado],
+        prioridad: p.conectado ? 20 : 5,
+        atenuado: !p.conectado,
+      });
+    }
+    for (const s of salas) {
+      const pos = proy(s.p[0], s.p[1], s.p[2]);
+      anclajes.push({ id: 'sala:' + s.id, tipo: 'sala', x: pos.x, y: pos.y, visible: pos.ok, completo: s.nombre, corto: s.nombre.split(' ')[0], color: s.color, prioridad: 30 });
+    }
+    const zoomRel = (camera as THREE.OrthographicCamera).zoom / baseZoom(size.width, size.height);
+    etiquetasStore.set({ anclajes, ancho: size.width, alto: size.height, zoomRel });
   });
+  return null;
+}
+
+/** Superposición HTML (nítida, fuera del lienzo WebGL) con líneas de referencia. */
+function EtiquetasOverlay({ seleccionado, onSelect, onZona, reservaDerecha }: { seleccionado: string | null; onSelect: (c: string) => void; onZona: (id: string) => void; reservaDerecha: number }) {
+  const st = useSyncExternalStore(etiquetasStore.subscribe, etiquetasStore.get);
+  const lista = useMemo(() => ubicarEtiquetas(st.anclajes, st.ancho, st.alto, st.zoomRel, seleccionado, { top: 52, right: reservaDerecha, bottom: 30 }), [st, seleccionado, reservaDerecha]);
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
+      <svg className="absolute inset-0 h-full w-full">
+        {lista
+          .filter((e) => e.modo !== 'oculto' && e.tipo === 'persona')
+          .map((e) => {
+            const by = e.ly + e.h / 2 < e.y ? e.ly + e.h / 2 : e.ly - e.h / 2;
+            const bx = Math.abs(e.lx - e.x) > e.w / 2 ? e.lx + (e.x > e.lx ? e.w / 2 : -e.w / 2) : e.x;
+            return (
+              <g key={e.id} opacity={e.atenuado ? 0.45 : 0.9}>
+                <line x1={e.x} y1={e.y} x2={bx} y2={Math.abs(e.lx - e.x) > e.w / 2 ? e.ly : by} stroke={e.id === seleccionado ? '#22d3ee' : 'rgba(226,232,240,0.85)'} strokeWidth={e.id === seleccionado ? 2 : 1.2} />
+                <circle cx={e.x} cy={e.y} r={3} fill={e.color} stroke="#0b1d42" strokeWidth={1} />
+              </g>
+            );
+          })}
+      </svg>
+      {lista
+        .filter((e) => e.modo !== 'oculto')
+        .map((e) =>
+          e.tipo === 'sala' ? (
+            <button
+              key={e.id}
+              onClick={() => onZona(e.id.slice(5))}
+              className="pointer-events-auto absolute flex items-center justify-center whitespace-nowrap rounded-lg border border-white/25 px-2.5 text-[12px] font-semibold text-white shadow-lg backdrop-blur"
+              style={{ left: e.lx - e.w / 2, top: e.ly - e.h / 2, width: e.w, height: e.h, background: `linear-gradient(180deg, ${e.color}e6, #061633e6)` }}
+            >
+              {e.modo === 'corto' ? e.corto : e.completo}
+            </button>
+          ) : (
+            <button
+              key={e.id}
+              onClick={() => onSelect(e.id)}
+              className={`pointer-events-auto absolute flex flex-col items-center justify-center rounded-lg px-2 text-center shadow-xl ring-1 transition-[left,top] duration-150 ${
+                e.id === seleccionado ? 'bg-cyan-50 ring-2 ring-cyan-400' : 'bg-white/95 ring-slate-300'
+              } ${e.atenuado ? 'opacity-60' : ''}`}
+              style={{ left: e.lx - e.w / 2, top: e.ly - e.h / 2, width: e.w, height: e.h }}
+              aria-label={`${e.completo}: ${e.detalle}`}
+            >
+              {e.modo === 'corto' ? (
+                <span className="flex items-center gap-1 text-[11px] font-bold text-slate-900">
+                  <span className="h-2 w-2 rounded-full" style={{ background: e.color }} />
+                  {e.corto}
+                </span>
+              ) : (
+                <>
+                  <span className="w-full truncate text-[11.5px] font-bold leading-tight text-slate-900">{e.completo}</span>
+                  {e.detalle && (
+                    <span className="flex items-center gap-1 text-[10.5px] font-medium leading-tight text-slate-700">
+                      <span className="h-2 w-2 rounded-full" style={{ background: e.color }} />
+                      {e.detalle}
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+          ),
+        )}
+    </div>
+  );
+}
+
+/* ------------------------------------ Escena ------------------------------------ */
+function Estacion({ x, z, m, encendida, tex }: { x: number; z: number; m: Mats; encendida: boolean; tex: THREE.Texture }) {
+  return (
+    <group>
+      {/* mampara posterior con acceso */}
+      <mesh position={[x - 3.2, 0.62, 10.4]} material={m.vidrio}>
+        <boxGeometry args={[1.6, 1.24, 0.05]} />
+      </mesh>
+      <mesh position={[x + 1.55, 0.62, 10.4]} material={m.vidrio}>
+        <boxGeometry args={[4.9, 1.24, 0.05]} />
+      </mesh>
+      <mesh position={[x + 4, 0.5, 13.2]} material={m.vidrio}>
+        <boxGeometry args={[0.05, 1.0, 5.6]} />
+      </mesh>
+      <mesh position={[x + 4, 1.0, 13.2]} material={m.aluminio}>
+        <boxGeometry args={[0.06, 0.04, 5.6]} />
+      </mesh>
+      <mesh position={[x, 0.006, 13.4]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[7.6, 5.6]} />
+        <meshStandardMaterial color="#d7dee8" roughness={0.95} />
+      </mesh>
+      <Escritorio position={[x, 0, 13.5]} m={m} pantalla={encendida} textura={tex} />
+      <Silla position={[x, 0, 12.45]} m={m} />
+      <Planta position={[x + 3.1, 0, 11.2]} m={m} scale={0.9} tipo={x % 2 ? 1 : 0} />
+      <mesh position={[x - 2.6, 0.32, 15.6]} material={m.madera} castShadow>
+        <boxGeometry args={[0.9, 0.64, 0.45]} />
+      </mesh>
+    </group>
+  );
+}
+
+function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimiento, sombras, reservaDerecha }: Props & { sombras: boolean }) {
+  const controls = useRef<MapControlsImpl>(null!);
+  const m = useMateriales();
+  const piso = usePorcelanato();
+  const parquet = useParquet();
+  const ventanal = useVentanal();
+  const { trabajo, video } = usePantallas();
+  const suelos = Object.fromEntries(ROOMS.map((r) => [r.id, r.id === 'debriefing' ? parquet : null]));
+  const alfCap = useAlfombra('#9fb2c9');
+  const alfPsq = useAlfombra('#b9a8d0');
+  const alfTel = useAlfombra('#a9cdb7');
+  const alfCons = useAlfombra('#c4d3e6');
+  const marca = useTextoTextura(
+    [
+      { t: 'CGREG', f: 'bold 150px Inter, sans-serif', c: '#0b1d42' },
+      { t: 'Oficina Virtual', f: '600 64px Inter, sans-serif', c: '#0b1d42' },
+      { t: 'Brigada de Atención Psicosocial y de Salud', f: '500 40px Inter, sans-serif', c: '#123170' },
+    ],
+    1400,
+    420,
+  );
+  const presentacion = useCanvasTexture((g, w, h) => {
+    g.fillStyle = '#f8fafc';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = '#0b2350';
+    g.fillRect(0, 0, w, 70);
+    g.fillStyle = '#fff';
+    g.font = 'bold 40px Inter, sans-serif';
+    g.fillText('Primeros auxilios psicológicos', 30, 48);
+    g.fillStyle = '#334155';
+    g.font = '30px Inter, sans-serif';
+    ['Escuchar', 'Proteger', 'Conectar', 'Rutas de apoyo DECE'].forEach((t, i) => g.fillText(`• ${t}`, 50, 140 + i * 56));
+    g.fillStyle = '#22d3ee';
+    g.fillRect(620, 120, 300, 260);
+  }, 1024, 512);
+  const tableroMadera = m.madera;
 
   const porPro = useMemo(() => new Map(presencia.filter((p) => p.profesional_id).map((p) => [p.profesional_id!, p])), [presencia]);
-  const zonaActiva = (z: Zona) => presencia.some((p) => p.conectado && p.zona === z);
   const diego = porPro.get('diego-estrella');
   const demetrio = porPro.get('demetrio-magallanes');
-
-  // índice de cada avatar dentro de su zona (para repartir asientos)
+  const enZona = (z: Zona) => presencia.some((p) => p.conectado && p.zona === z);
   const slots = useMemo(() => {
     const cont = new Map<string, number>();
     return presencia.map((p) => {
       if (!p.conectado) return null;
-      const k = p.zona;
-      const i = cont.get(k) ?? 0;
-      cont.set(k, i + 1);
+      const i = cont.get(p.zona) ?? 0;
+      cont.set(p.zona, i + 1);
       return slotPara(p, p.zona, i);
     });
   }, [presencia]);
 
+  // Gancho de lectura para pruebas visuales automatizadas (solo posiciones públicas de avatares).
+  useEffect(() => {
+    (window as unknown as { __cgregOffice?: unknown }).__cgregOffice = {
+      avatares: () => Object.fromEntries([...registroAvatares.entries()].map(([k, v]) => [k, { ...v }])),
+      calidad: () => ({ ...calidad }),
+      render: () => ({ ...(window as any).__cgregRender }),
+    };
+  }, []);
+
   return (
     <>
-      <OrthographicCamera makeDefault position={[12, 34, 38]} zoom={10} near={-200} far={400} />
+      <OrthographicCamera makeDefault position={[13, 30, 36]} zoom={20} near={-300} far={500} />
       <MapControls
         ref={controls}
         enableDamping
         dampingFactor={0.12}
         screenSpacePanning
         minPolarAngle={0.5}
-        maxPolarAngle={1.15}
-        minAzimuthAngle={AZ - 0.6}
-        maxAzimuthAngle={AZ + 0.6}
+        maxPolarAngle={1.1}
+        minAzimuthAngle={AZ - 0.55}
+        maxAzimuthAngle={AZ + 0.55}
       />
-      <CameraRig foco={foco} controls={controls} />
+      <CameraRig foco={foco} controls={controls} reserva={reservaDerecha} />
+      <Anclajes presencia={presencia} />
 
-      <hemisphereLight args={['#e0f2fe', '#1e293b', 0.9]} />
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[18, 32, 14]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-32} shadow-camera-right={32} shadow-camera-top={32} shadow-camera-bottom={-32} />
+      {/* Iluminación: cielo + sol desde el ventanal + entorno local para reflejos (sin recursos externos) */}
+      <hemisphereLight args={['#eaf4ff', '#5b4a3a', 0.65]} />
+      <ambientLight intensity={0.25} />
+      <directionalLight
+        position={[-18, 34, -26]}
+        intensity={2.1}
+        color="#fff4e2"
+        castShadow={sombras}
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.03}
+        shadow-camera-left={-40}
+        shadow-camera-right={40}
+        shadow-camera-top={34}
+        shadow-camera-bottom={-34}
+        shadow-camera-near={1}
+        shadow-camera-far={120}
+      />
+      <directionalLight position={[20, 18, 30]} intensity={0.55} color="#dbeafe" />
+      <Environment resolution={128} frames={1}>
+        <Lightformer form="rect" intensity={2.5} position={[0, 6, -10]} scale={[20, 5, 1]} color="#ffffff" />
+        <Lightformer form="rect" intensity={1.2} position={[10, 8, 10]} scale={[10, 10, 1]} color="#dbeafe" />
+        <Lightformer form="ring" intensity={0.8} position={[-10, 5, 5]} scale={4} color="#fde68a" />
+      </Environment>
 
-      {/* piso */}
+      <Fusionar key={sombras ? 's' : 'n'}>
+      {/* Piso, losa y muros */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial map={floor} roughness={0.85} />
+        <meshStandardMaterial map={piso} color="#dfe2e7" roughness={0.45} metalness={0.02} envMapIntensity={0.5} />
       </mesh>
-      {/* borde/zócalo */}
-      <mesh position={[0, -0.25, 0]}>
-        <boxGeometry args={[W + 0.6, 0.5, D + 0.6]} />
-        <meshStandardMaterial color="#0b2350" />
+      <mesh position={[0, -0.3, 0]}>
+        <boxGeometry args={[W + 0.8, 0.6, D + 0.8]} />
+        <meshStandardMaterial color="#0b2350" roughness={0.6} />
       </mesh>
-      {/* pasillos */}
-      {[-5, 7.6].map((z) => (
-        <mesh key={z} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, z]} receiveShadow>
-          <planeGeometry args={[W - 1, 1.6]} />
-          <meshStandardMaterial color="#c7d2de" />
+      {[-6.6, 7.4].map((z) => (
+        <mesh key={z} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, z]} receiveShadow>
+          <planeGeometry args={[W - 1, 1.8]} />
+          <meshStandardMaterial color="#cfd6df" roughness={0.6} />
         </mesh>
       ))}
-
-      {/* muro posterior con ventanal al mar */}
-      <mesh position={[0, 2.1, -D / 2 + 0.05]}>
-        <planeGeometry args={[W, 4.2]} />
+      {/* Ventanal panorámico con perfilería */}
+      <mesh position={[0, 2.35, -D / 2 + 0.02]}>
+        <planeGeometry args={[W, 4.5]} />
         <meshBasicMaterial map={ventanal} toneMapped={false} />
       </mesh>
-      <mesh position={[0, 4.25, -D / 2]}>
-        <boxGeometry args={[W, 0.15, 0.2]} />
-        <meshStandardMaterial color="#334155" />
+      {Array.from({ length: W / 4 + 1 }).map((_, i) => (
+        <mesh key={i} position={[-W / 2 + i * 4, 2.35, -D / 2 + 0.06]} material={m.aluminio}>
+          <boxGeometry args={[0.1, 4.6, 0.1]} />
+        </mesh>
+      ))}
+      <mesh position={[0, 4.65, -D / 2 + 0.05]} material={m.aluminio}>
+        <boxGeometry args={[W, 0.16, 0.16]} />
       </mesh>
-      {/* muro izquierdo de madera con identidad */}
-      <mesh position={[-W / 2 + 0.05, 2.1, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[D, 4.2]} />
-        <meshStandardMaterial color={WOOD} roughness={0.7} />
+      <mesh position={[0, 0.06, -D / 2 + 0.08]} material={m.aluminio}>
+        <boxGeometry args={[W, 0.12, 0.14]} />
       </mesh>
-      <Html position={[-W / 2 + 0.2, 3.1, 10]} rotation={[0, Math.PI / 2, 0]} transform distanceFactor={9} zIndexRange={[10, 0]} className="office-label">
-        <div className="text-left font-black leading-none tracking-tight text-[#0b1d42]" style={{ width: 340 }}>
-          <div className="text-[64px]">CGREG</div>
-          <div className="mt-1 text-[30px] font-bold">Oficina Virtual</div>
-          <div className="text-[20px] font-semibold text-[#123170]">Brigada de Atención Psicosocial y de Salud</div>
-        </div>
-      </Html>
+      {/* Muro lateral de madera con identidad institucional */}
+      <mesh position={[-W / 2 + 0.05, 2.35, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[D, 4.7]} />
+        <meshStandardMaterial color="#a77b52" roughness={0.6} />
+      </mesh>
+      {Array.from({ length: 20 }).map((_, i) => (
+        <mesh key={i} position={[-W / 2 + 0.08, 2.35, -D / 2 + 1 + i * 2]} material={m.maderaOscura}>
+          <boxGeometry args={[0.02, 4.7, 0.04]} />
+        </mesh>
+      ))}
+      <mesh position={[-W / 2 + 0.12, 3.1, 14]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[8, 2.4]} />
+        <meshBasicMaterial map={marca} transparent toneMapped={false} />
+      </mesh>
 
-      {/* salas */}
-      {ROOMS.map((r) => {
+      {/* Salas con muros de cristal */}
+      {ROOMS.filter((r) => r.id !== 'consultorios').map((r) => {
         const activo =
-          r.id === 'psiquiatria'
-            ? !!diego && (diego.conectado || diego.en_horario)
-            : r.id === 'telemedicina'
-              ? !!demetrio?.conectado
-              : r.id === 'consultorios'
-                ? zonaActiva('consultorio_psicologia')
-                : zonaActiva(r.id as Zona);
-        return (
-          <group key={r.id}>
-            <GlassRoom center={r.center} size={r.size} color={r.color} activo={activo || hover === r.id} onClick={() => onZona(r.id)} onOver={(v) => setHover(v ? r.id : null)} />
-            <Etiqueta position={[r.center[0] + (r.id === 'telemedicina' ? 2.4 : 0), 3.4, r.center[1] - r.size[1] / 2 + 0.3]} color={r.color} onClick={() => onZona(r.id)}>
-              {r.nombre}
-              {r.sub && <span className="ml-1 font-normal opacity-80">({r.sub})</span>}
-            </Etiqueta>
-          </group>
-        );
+          r.id === 'psiquiatria' ? !!diego && (diego.conectado || diego.en_horario) : r.id === 'telemedicina' ? !!demetrio?.conectado : enZona(r.id as Zona);
+        const suelo = suelos[r.id] ?? (r.id === 'capacitacion' ? alfCap : r.id === 'psiquiatria' ? alfPsq : alfTel);
+        return <SalaCristal key={r.id} center={r.center} size={r.size} m={m} suelo={suelo} activo={activo} color={r.color} onClick={() => onZona(r.id)} />;
       })}
 
-      {/* Sala de Debriefing: mesa ovalada */}
-      <group position={[-14, 0, -10.5]}>
-        <mesh position={[0, 0.74, 0]} scale={[1.6, 1, 1]} castShadow receiveShadow>
-          <cylinderGeometry args={[2, 2, 0.08, 40]} />
-          <meshStandardMaterial color={WOOD} roughness={0.5} />
+      {/* Sala de Debriefing */}
+      <group position={[-19, 0, -13.5]}>
+        <mesh position={[0, 0.74, 0]} scale={[1.75, 1, 1]} castShadow receiveShadow material={tableroMadera}>
+          <cylinderGeometry args={[1.75, 1.75, 0.07, 48]} />
         </mesh>
-        <mesh position={[0, 0.37, 0]}>
-          <cylinderGeometry args={[0.3, 0.4, 0.74, 12]} />
-          <meshStandardMaterial color="#334155" />
+        <mesh position={[0, 0.37, 0]} material={m.aluminio}>
+          <cylinderGeometry args={[0.18, 0.35, 0.72, 16]} />
         </mesh>
         {Array.from({ length: 8 }).map((_, i) => {
           const a = Math.PI / 2 + (i * Math.PI * 2) / 8;
-          return <Chair key={i} position={[Math.cos(a) * 4, 0, Math.sin(a) * 2.6]} rot={Math.atan2(-Math.cos(a), -Math.sin(a))} />;
+          return <Silla key={i} position={[Math.cos(a) * 4.4, 0, Math.sin(a) * 2.6]} rot={Math.atan2(-Math.cos(a), -Math.sin(a))} m={m} />;
         })}
-        <mesh position={[0, 1.8, -4.35]}>
-          <boxGeometry args={[4, 1.4, 0.08]} />
-          <meshStandardMaterial color="#0f172a" emissive={zonaActiva('debriefing') ? '#0ea5e9' : '#000'} emissiveIntensity={0.5} />
+        <mesh position={[0, 1.7, -5.6]} material={m.negro}>
+          <boxGeometry args={[3.2, 1.8, 0.08]} />
         </mesh>
+        <mesh position={[0, 1.7, -5.55]} userData={{ dinamico: true }}>
+          <planeGeometry args={[3.05, 1.65]} />
+          <meshStandardMaterial map={enZona('debriefing') ? video : null} color={enZona('debriefing') ? '#ffffff' : '#0d1320'} emissive="#ffffff" emissiveMap={enZona('debriefing') ? video : null} emissiveIntensity={enZona('debriefing') ? 0.8 : 0} />
+        </mesh>
+        <Planta position={[-8, 0, -5]} m={m} scale={1.3} />
+        <Planta position={[8, 0, -5]} m={m} scale={1.3} tipo={1} />
       </group>
 
       {/* Centro de Capacitación DECE */}
-      <group position={[2.5, 0, -10.5]}>
-        <mesh position={[0, 1.9, -4.3]}>
-          <boxGeometry args={[5.5, 2, 0.08]} />
-          <meshStandardMaterial color="#e2e8f0" emissive={zonaActiva('capacitacion') ? '#22d3ee' : '#000'} emissiveIntensity={0.35} />
+      <group position={[1, 0, -13.5]}>
+        <mesh position={[0, 2, -5.6]} userData={{ dinamico: true }}>
+          <planeGeometry args={[6, 3]} />
+          <meshStandardMaterial map={presentacion} emissive="#ffffff" emissiveMap={presentacion} emissiveIntensity={enZona('capacitacion') ? 0.7 : 0.15} />
+        </mesh>
+        <mesh position={[0, 0.45, -4.2]} material={m.blanco} castShadow>
+          <boxGeometry args={[1.2, 0.9, 0.6]} />
         </mesh>
         {Array.from({ length: 12 }).map((_, i) => (
-          <Chair key={i} position={[-3.5 + (i % 4) * 2.3, 0, 0.8 + Math.floor(i / 4) * 1.6]} rot={Math.PI} color="#1e3a8a" />
+          <Silla key={i} position={[-4.5 + (i % 4) * 3, 0, 0.5 + Math.floor(i / 4) * 2.2]} rot={Math.PI} m={m} color={m.tela} />
         ))}
-        <Desk position={[0, 0, -2.6]} w={1.6} pantalla={zonaActiva('capacitacion')} />
+        <Planta position={[-8.5, 0, -5]} m={m} scale={1.2} tipo={1} />
+        <Planta position={[8.5, 0, -5]} m={m} scale={1.2} />
       </group>
 
       {/* Psiquiatría */}
-      <group position={[18, 0, -10.5]}>
-        <Desk position={[-3, 0, 1.6]} pantalla={!!diego?.conectado} colorPantalla="#a855f7" />
-        <Chair position={[-3, 0, 0.9]} />
-        <Desk position={[2.2, 0, -0.7]} rot={-Math.PI / 2} w={1.6} pantalla={diego?.estado === 'en_consulta'} colorPantalla="#c084fc" />
-        <mesh position={[3.5, 1.1, -4.2]} castShadow>
-          <boxGeometry args={[2, 2.2, 0.5]} />
-          <meshStandardMaterial color="#6b4f37" />
-        </mesh>
-        <Plant position={[-4.3, 0, -3.8]} />
+      <group>
+        <Escritorio position={[16, 0, -11.25]} m={m} pantalla={!!diego?.conectado} textura={trabajo} tablero={m.madera} />
+        <Silla position={[16, 0, -12.2]} m={m} />
+        <Escritorio position={[27.35, 0, -14.8]} rot={Math.PI / 2} w={1.4} m={m} monitores={1} pantalla={diego?.estado === 'en_consulta'} textura={video} />
+        <Silla position={[26.4, 0, -14.8]} rot={Math.PI / 2} m={m} />
+        <Estanteria position={[21.5, 0, -19.1]} m={m} />
+        <Sofa position={[20.5, 0, -10]} rot={Math.PI} m={m} color="#6d5a8a" />
+        <Planta position={[13.8, 0, -18.8]} m={m} scale={1.2} />
       </group>
 
       {/* Telemedicina */}
-      <group position={[18, 0, 1.5]}>
-        <Desk position={[-2.4, 0, 3.2]} pantalla={!!demetrio?.conectado} colorPantalla="#10b981" monitores={2} />
-        <Desk position={[3, 0, -1.3]} rot={-Math.PI / 2} w={1.8} pantalla={demetrio?.estado === 'en_consulta'} colorPantalla="#34d399" />
-        <mesh position={[4.9, 1.6, -1.3]} rotation={[0, -Math.PI / 2, 0]}>
-          <planeGeometry args={[2.6, 1.5]} />
-          <meshStandardMaterial color={demetrio?.estado === 'en_consulta' ? '#d1fae5' : '#0f172a'} emissive={demetrio?.estado === 'en_consulta' ? '#10b981' : '#000'} emissiveIntensity={0.6} side={THREE.DoubleSide} />
+      <group>
+        <Escritorio position={[17.5, 0, 2.55]} m={m} pantalla={!!demetrio?.conectado} textura={trabajo} />
+        <Silla position={[17.5, 0, 1.5]} m={m} />
+        <Escritorio position={[28.15, 0, -1.4]} rot={Math.PI / 2} w={1.5} m={m} monitores={1} pantalla={demetrio?.estado === 'en_consulta'} textura={video} />
+        <Silla position={[27.2, 0, -1.4]} rot={Math.PI / 2} m={m} />
+        <mesh position={[30.85, 1.75, -1.4]} rotation={[0, -Math.PI / 2, 0]} userData={{ dinamico: true }}>
+          <planeGeometry args={[3.2, 1.8]} />
+          <meshStandardMaterial map={demetrio?.estado === 'en_consulta' ? video : null} color={demetrio?.estado === 'en_consulta' ? '#ffffff' : '#0d1320'} emissive="#ffffff" emissiveMap={demetrio?.estado === 'en_consulta' ? video : null} emissiveIntensity={demetrio?.estado === 'en_consulta' ? 0.85 : 0} />
         </mesh>
-        <Plant position={[-4.3, 0, -3.6]} />
+        <mesh position={[22, 0.45, -5]} material={m.blanco} castShadow>
+          <boxGeometry args={[2.2, 0.9, 0.6]} />
+        </mesh>
+        <Planta position={[14.8, 0, -5.2]} m={m} scale={1.1} />
       </group>
 
-      {/* Consultorios de psicología: cabinas */}
+      {/* Consultorios individuales de Psicología (puerta hacia su pasillo) */}
+      <mesh position={[-21, 0.01, -0.5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ dinamico: true }} onClick={(e) => (e.stopPropagation(), onZona('consultorios'))}>
+        <planeGeometry args={[19.9, 10.9]} />
+        <meshStandardMaterial map={alfCons} roughness={0.95} />
+      </mesh>
       {CABINAS.map(([x, z], i) => {
         const ocupada = presencia.some((p) => p.conectado && p.zona === 'consultorio_psicologia' && p.estacion === `psi-${i + 1}`);
+        const puertaZ = z < 0 ? -2.75 : 2.75; // lado de la puerta, relativo a la cabina
         return (
           <group key={i} position={[x, 0, z]}>
-            <mesh position={[0, 1.1, -1.7]}>
-              <boxGeometry args={[4.2, 2.2, 0.06]} />
-              <meshStandardMaterial color="#93c5fd" transparent opacity={0.22} depthWrite={false} />
+            <mesh position={[0, 1.25, -puertaZ]} material={m.vidrio}>
+              <boxGeometry args={[6.4, 2.5, 0.05]} />
             </mesh>
-            <mesh position={[2.1, 0.9, 0]}>
-              <boxGeometry args={[0.06, 1.8, 3.4]} />
-              <meshStandardMaterial color="#93c5fd" transparent opacity={0.18} depthWrite={false} />
+            <mesh position={[3.2, 1.25, 0]} material={m.vidrio}>
+              <boxGeometry args={[0.05, 2.5, 5.4]} />
             </mesh>
-            <Desk position={[0, 0, 0.5]} w={1.6} d={0.8} pantalla={ocupada} colorPantalla="#60a5fa" />
-            {ocupada && <pointLight position={[0, 2, 0]} color="#60a5fa" intensity={3} distance={4} />}
+            {[-1, 1].map((l) => (
+              <mesh key={l} position={[l * 2, 0.55, puertaZ]} material={m.vidrio}>
+                <boxGeometry args={[2.4, 1.1, 0.05]} />
+              </mesh>
+            ))}
+            {[[-3.2, -puertaZ], [3.2, -puertaZ], [3.2, puertaZ], [-3.2, puertaZ]].map(([px, pz], k) => (
+              <mesh key={'p' + k} position={[px, 1.25, pz]} material={m.aluminio}>
+                <boxGeometry args={[0.06, 2.5, 0.06]} />
+              </mesh>
+            ))}
+            <Escritorio position={[0.05, 0, 0.3]} rot={Math.PI / 2} w={1.3} m={m} monitores={1} pantalla={ocupada} textura={video} />
+            <Silla position={[-0.9, 0, 0.3]} rot={Math.PI / 2} m={m} />
+            <Planta position={[2.4, 0, -puertaZ * 0.75]} m={m} scale={0.7} tipo={i % 2} />
+            <Sofa position={[-2.3, 0, -puertaZ * 0.7]} rot={z < 0 ? 0 : Math.PI} m={m} color="#7b8ba3" />
           </group>
         );
       })}
 
-      {/* Coordinación central */}
-      <group position={[0, 0, 1]}>
-        <mesh position={[0, 0.5, 0.2]} castShadow receiveShadow>
-          <cylinderGeometry args={[2.6, 2.6, 1, 48, 1, true, -Math.PI * 0.35, Math.PI * 0.7]} />
-          <meshStandardMaterial color="#f8fafc" side={THREE.DoubleSide} />
+      {/* Coordinación CGREG: recepción curva */}
+      <group position={[0, 0, -0.5]}>
+        <mesh position={[0, 0.55, 0.4]} castShadow receiveShadow>
+          <cylinderGeometry args={[2.5, 2.5, 1.1, 48, 1, true, -Math.PI * 0.42, Math.PI * 0.84]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.3} side={THREE.DoubleSide} />
         </mesh>
-        <mesh position={[0, 1.02, 0.2]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.1, 2.7, 48, 1, Math.PI / 2 - Math.PI * 0.35 - 0.0, Math.PI * 0.7]} />
-          <meshStandardMaterial color={WOOD} side={THREE.DoubleSide} />
+        <mesh position={[0, 1.12, 0.4]} rotation={[-Math.PI / 2, 0, 0]} material={m.madera}>
+          <ringGeometry args={[2.15, 2.75, 48, 1, Math.PI / 2 - Math.PI * 0.42, Math.PI * 0.84]} />
         </mesh>
-        <mesh position={[0, 0.06, 0.2]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.7, 2.85, 48]} />
-          <meshBasicMaterial color={zonaActiva('coordinacion') ? '#22d3ee' : '#94a3b8'} />
+        <mesh position={[0, 0.02, 0.4]} rotation={[-Math.PI / 2, 0, 0]} userData={{ dinamico: true }}>
+          <ringGeometry args={[2.85, 3.0, 64]} />
+          <meshBasicMaterial color={enZona('coordinacion') ? '#22d3ee' : '#94a3b8'} />
         </mesh>
-        <Desk position={[0, 0, 0.9]} w={1.8} d={0.7} monitores={2} pantalla={zonaActiva('coordinacion')} />
-        <Etiqueta position={[0, 2.9, 3.2]} color="#123170" onClick={() => onZona('coordinacion')}>
-          {ZONES_ABIERTAS.coordinacion.nombre}
-        </Etiqueta>
+        <Escritorio position={[0, 0, 0.05]} w={1.8} m={m} pantalla={enZona('coordinacion')} textura={trabajo} tablero={m.madera} />
+        <Silla position={[0, 0, -0.9]} m={m} />
+        <Planta position={[-3.6, 0, -2]} m={m} scale={1.2} />
+        <Planta position={[3.6, 0, -2]} m={m} scale={1.2} tipo={1} />
       </group>
-      <Plant position={[-3.6, 0, -2.2]} scale={1.1} />
-      <Plant position={[3.4, 0, -2.4]} />
 
-      {/* Articulación territorial */}
-      <group position={[8.5, 0, 1.5]}>
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={(e) => (e.stopPropagation(), onZona('territorial'))}>
-          <circleGeometry args={[2.6, 40]} />
-          <meshStandardMaterial color={zonaActiva('territorial') ? '#fdba74' : '#e2e8f0'} transparent opacity={0.7} />
+      {/* Articulación Territorial */}
+      <group position={[10.5, 0, -0.5]}>
+        <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={(e) => (e.stopPropagation(), onZona('territorial'))} receiveShadow userData={{ dinamico: true }}>
+          <circleGeometry args={[3, 48]} />
+          <meshStandardMaterial color={enZona('territorial') ? '#fed7aa' : '#e5e7eb'} roughness={0.9} />
         </mesh>
-        <Desk position={[0, 0, 0]} w={1.6} pantalla={zonaActiva('territorial')} colorPantalla="#fb923c" />
-        <mesh position={[0, 1.4, -2.3]}>
-          <boxGeometry args={[2.6, 1.6, 0.06]} />
-          <meshStandardMaterial color="#e0f2fe" />
+        <Escritorio position={[0, 0, -0.05]} m={m} pantalla={enZona('territorial')} textura={trabajo} monitores={1} />
+        <Silla position={[0, 0, -1]} m={m} />
+        <mesh position={[0, 1.4, -2.7]} castShadow>
+          <boxGeometry args={[3.2, 1.8, 0.06]} />
+          <meshStandardMaterial color="#e0f2fe" roughness={0.5} />
         </mesh>
-        <Etiqueta position={[0, 3.6, -2.2]} color="#9a3412" onClick={() => onZona('territorial')}>
-          {ZONES_ABIERTAS.territorial.nombre}
-        </Etiqueta>
       </group>
+
+      {/* Psicología Clínica: seis estaciones */}
+      {Object.entries(ESTACIONES_PSI).map(([k, [x, z]]) => (
+        <Estacion key={k} x={x} z={z} m={m} tex={trabajo} encendida={presencia.some((p) => p.estacion === k && p.conectado && p.zona === 'estacion')} />
+      ))}
 
       {/* Zona de pausa */}
-      <group position={[21, 0, 12]}>
-        <Sofa position={[0, 0, 0.6]} rot={-Math.PI / 4} />
-        <mesh position={[-0.6, 0.25, -0.4]}>
-          <cylinderGeometry args={[0.5, 0.5, 0.5, 20]} />
-          <meshStandardMaterial color={WOOD} />
+      <group>
+        <Sofa position={[27.4, 0, 14.05]} m={m} color="#475569" />
+        <mesh position={[27.4, 0.22, 15.4]} material={m.madera} castShadow>
+          <cylinderGeometry args={[0.55, 0.55, 0.06, 32]} />
         </mesh>
-        <Plant position={[1.6, 0, -1.6]} />
+        <mesh position={[27.4, 0.1, 15.4]} material={m.aluminio}>
+          <cylinderGeometry args={[0.05, 0.2, 0.2, 12]} />
+        </mesh>
+        <Planta position={[30.4, 0, 12]} m={m} scale={1.3} tipo={1} />
+        <Planta position={[24.2, 0, 17.5]} m={m} scale={1.1} />
       </group>
 
-      {/* Área de Psicología Clínica: seis estaciones */}
-      {Object.entries(ESTACIONES_PSI).map(([k, [x, z]], i) => (
-        <group key={k} position={[x, 0, z]}>
-          <mesh position={[0, 0.6, -1.8]}>
-            <boxGeometry args={[5.2, 1.2, 0.06]} />
-            <meshStandardMaterial color="#bfdbfe" transparent opacity={0.3} depthWrite={false} />
-          </mesh>
-          {i > 0 && (
-            <mesh position={[-2.6, 0.6, 0]}>
-              <boxGeometry args={[0.06, 1.2, 3.6]} />
-              <meshStandardMaterial color="#bfdbfe" transparent opacity={0.3} depthWrite={false} />
-            </mesh>
-          )}
-          <Desk position={[0, 0, 0.3]} rot={Math.PI} pantalla={presencia.some((p) => p.estacion === k && p.conectado && p.zona === 'estacion')} />
-          <Chair position={[0, 0, -0.9]} />
-          <Plant position={[2, 0, -1.2]} scale={0.7} />
-        </group>
+      {/* Plantas de ambientación y acceso */}
+      {[[-30.5, 18.5], [-30.5, -8], [5.2, 18.5], [12.5, -7.2], [-10.5, -7.2], [30.5, 7.8], [-5.5, 3.5], [5.5, 3.6]].map(([x, z], i) => (
+        <Planta key={i} position={[x, 0, z]} m={m} scale={1.25} tipo={i % 2} />
       ))}
-      <Etiqueta position={[-20.6, 2.2, 11]} color="#1d4ed8" onClick={() => onZona('psicologia')}>
-        {ZONES_ABIERTAS.psicologia.nombre}
-      </Etiqueta>
-      {/* placas de nombre en cada estación (estado real) */}
-      {Object.entries(ESTACIONES_PSI).map(([k, [x, z]]) => {
-        const p = presencia.find((q) => q.estacion === k);
-        return <Placa key={k} position={[x, 0.35, z + 1.6]} p={p} onSelect={() => p && onSelect(p.clave)} />;
-      })}
-      <Placa position={[15.6, 0.35, 6.1]} p={demetrio} onSelect={() => demetrio && onSelect(demetrio.clave)} />
-      <Placa position={[14.2, 0.35, -8.6]} p={diego} onSelect={() => diego && onSelect(diego.clave)} />
-      {porPro.get('andrea-mayorga') && <Placa position={[8.5, 0.35, 4.6]} p={porPro.get('andrea-mayorga')} onSelect={() => onSelect('andrea-mayorga')} />}
+      <mesh position={[0, 0.015, 19.3]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[4, 1.2]} />
+        <meshStandardMaterial color="#0b2350" roughness={1} />
+      </mesh>
 
-      {/* plantas decorativas */}
-      {[
-        [-23, 0, 14.5],
-        [23, 0, -3.5],
-        [-6.5, 0, 6],
-        [6.5, 0, 6],
-        [-23, 0, -4],
-        [12.5, 0, -4],
-      ].map((p, i) => (
-        <Plant key={i} position={p as [number, number, number]} scale={1.2} />
-      ))}
-      {/* entrada */}
-      <RoundedBox args={[3, 0.04, 1.2]} position={[0, 0.02, 16.3]} radius={0.02}>
-        <meshStandardMaterial color="#0b2350" />
-      </RoundedBox>
+      </Fusionar>
 
-      {/* avatares (solo usuarios con conexión real) */}
+      {/* Avatares (solo usuarios con conexión real) */}
       {presencia.map((p, i) => (
-        <Avatar
+        <Human
           key={p.clave}
           p={p}
           slot={slots[i]}
           seleccionado={seleccionado === p.clave}
-          onSelect={() => onSelect(p.clave)}
+          onSelect={(pos) => onSelect(p.clave, pos)}
           reducirMovimiento={reducirMovimiento}
-          mostrarNombre={zoomRel > 1.5 && p.zona !== 'estacion'}
+          sombras={sombras}
         />
       ))}
     </>
   );
 }
 
+/** Medición de FPS real del navegador (no simulada). */
+function MedidorFps() {
+  const acc = useRef({ n: 0, t: 0 });
+  const gl = useThree((s) => s.gl);
+  useFrame((_, dt) => {
+    (window as any).__cgregRender = { llamadas: gl.info.render.calls, triangulos: gl.info.render.triangles, geometrias: gl.info.memory.geometries, texturas: gl.info.memory.textures };
+    acc.current.n++;
+    acc.current.t += dt;
+    if (acc.current.t >= 1) {
+      calidad.fps = Math.round(acc.current.n / acc.current.t);
+      acc.current = { n: 0, t: 0 };
+      publicarCalidad();
+    }
+  });
+  return null;
+}
+
 export default function OfficeScene(props: Props) {
-  const [dpr, setDpr] = useState(1.5);
-  const [sombras, setSombras] = useState(true);
+  // Resolución nativa: en pantallas Retina se renderiza a DPR 2 (antes 1,5 → imagen reescalada y borrosa).
+  // ?calidad=baja fuerza el modo liviano (equipos modestos o navegadores sin aceleración gráfica).
+  const baja = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('calidad') === 'baja';
+  const dprMax = baja ? 1 : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+  const [dpr, setDpr] = useState(dprMax);
+  const [sombras, setSombras] = useState(!baja);
+  useEffect(() => {
+    calidad.dpr = dpr;
+    calidad.sombras = sombras;
+    calidad.nivel = dpr >= dprMax && sombras ? 'alta' : dpr > 1 ? 'media' : 'baja';
+    publicarCalidad();
+  }, [dpr, sombras, dprMax]);
   return (
-    <Canvas
-      shadows={sombras}
-      dpr={dpr}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
-      onCreated={({ gl }) => {
-        gl.setClearColor('#04102b');
-      }}
-      aria-label="Oficina virtual isométrica"
-    >
-      <PerformanceMonitor
-        onDecline={() => {
-          setDpr(1);
-          setSombras(false);
-        }}
-      />
-      <fog attach="fog" args={['#04102b', 120, 260]} />
-      <Suspense fallback={null}>
-        <Escena {...props} />
-      </Suspense>
-    </Canvas>
+    <div className="relative h-full w-full">
+      <Canvas
+        shadows={sombras ? 'soft' : false}
+        dpr={dpr}
+        gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.98, outputColorSpace: THREE.SRGBColorSpace }}
+        onCreated={({ gl }) => gl.setClearColor('#04102b')}
+        aria-label="Oficina virtual isométrica"
+      >
+        {/* Calidad adaptativa: baja la resolución en pasos pequeños solo si los FPS caen de forma sostenida */}
+        <PerformanceMonitor
+          bounds={() => [28, 55]}
+          flipflops={4}
+          onDecline={() => {
+            if (dpr > 1.25) setDpr((d) => Math.max(1, +(d - 0.25).toFixed(2)));
+            else setSombras(false);
+          }}
+          onIncline={() => setDpr((d) => Math.min(dprMax, +(d + 0.25).toFixed(2)))}
+        />
+        <MedidorFps />
+        <fog attach="fog" args={['#04102b', 160, 320]} />
+        <Suspense fallback={null}>
+          <Escena {...props} sombras={sombras} />
+        </Suspense>
+      </Canvas>
+      <EtiquetasOverlay seleccionado={props.seleccionado} onSelect={(c) => props.onSelect(c)} onZona={props.onZona} reservaDerecha={props.reservaDerecha ?? 0} />
+    </div>
   );
 }
+
+export { calidad };

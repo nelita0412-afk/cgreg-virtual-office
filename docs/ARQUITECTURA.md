@@ -83,6 +83,16 @@ Pausa (manual) ─────► «En pausa» → zona de pausa
 - No hay GPS, cámaras ni capturas de pantalla.
 - Al cargar la oficina se ubica a cada avatar directamente en su posición (recuperación de estado); solo los cambios posteriores se animan como desplazamientos por los pasillos.
 
+## Oficina virtual 3D (rediseño visual)
+
+- **Planta** de 64 × 40 m (`web/src/office/layout.ts`): fila posterior con Debriefing, Capacitación DECE y Psiquiatría; fila central con seis consultorios individuales de Psicología, Coordinación, Articulación Territorial y Telemedicina; fila frontal con las seis estaciones de Psicología (9 m entre centros) y zona de pausa. Las rutas recorren pasillos y entran por puertas (no atraviesan cristal).
+- **Avatares articulados** (`Human.tsx`): caderas, rodillas, hombros, codos y cabeza; vestimenta por profesional (bata para Medicina y Psiquiatría). Posturas derivadas del estado real: trabajar o teclear (documentación), conversar (consulta o reunión), presentar (capacitación), relajado (pausa). Se levantan antes de caminar y se sientan al llegar. Sin eventos nuevos no caminan.
+- **Etiquetas inteligentes** (`labels.ts`, superposición HTML nítida): reparto sin solapes con líneas de referencia, modo abreviado según el zoom, prioridad del seleccionado y zonas reservadas (barra y panel). Función pura con pruebas (`tests/labels.test.ts`).
+- **Calidad**: resolución nativa (DPR hasta 2), antialiasing, mapeo tonal ACES, sRGB, texturas procedurales con filtro anisotrópico máximo, sombras suaves y entorno de reflejos local (sin recursos externos). La geometría estática se fusiona por material (`Fusionar.tsx`): unas 320 llamadas de dibujo con la oficina completa en pantalla (80–170 en vistas de departamento) en lugar de más de 2.000.
+- **Cámara**: zoom 1 encuadra la oficina completa (proyección isométrica de ~74 × 40 unidades). Cada departamento tiene su vista; al seleccionar a una persona la cámara se centra en ella dentro del área visible, descontando el panel lateral abierto.
+- **Calidad adaptativa**: baja la resolución en pasos de 0,25 solo si los FPS caen de forma sostenida y, como último recurso, desactiva las sombras. `?calidad=baja` fuerza el modo liviano. El indicador inferior muestra FPS, calidad y DPR reales.
+- **Prueba visual de movimiento**: `npm run e2e:movimiento` verifica en el navegador que los avatares se desplazan y adoptan la postura correcta ante eventos reales (consulta, telemedicina, debriefing) y que las etiquetas no se superponen.
+
 ## Rendimiento y accesibilidad
 
 - `PerformanceMonitor` reduce resolución y desactiva sombras si los FPS caen; animaciones basadas en tiempo real.
