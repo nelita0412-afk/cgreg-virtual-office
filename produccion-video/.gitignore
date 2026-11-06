@@ -1,0 +1,15 @@
+# Archivos regenerables o pesados: no se versionan
+node_modules/
+grabacion/
+grabacion-*/
+prueba*/
+exploracion/
+audio/
+*.mp4
+*.wav
+*.mp3
+_*.jpg
+video_v2.html
+video.html
+linea_tiempo_v2.json
+CGREG-video-v2-subtitulos.srt

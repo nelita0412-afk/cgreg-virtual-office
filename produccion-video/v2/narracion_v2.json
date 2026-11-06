@@ -1,0 +1,130 @@
+{
+ "nota": "Texto idéntico al guion original. En el audio, «CGREG» se pronuncia «CEGREG» (sustitución solo para la voz; subtítulos y gráficos conservan CGREG). Las escenas 5 y 6 se dividen en frases para sincronizarlas con la navegación.",
+ "escenas": [
+  {
+   "n": 1,
+   "titulo": "Contexto territorial",
+   "frases": [
+    {
+     "id": "1",
+     "texto": "Ante las afectaciones asociadas al fenómeno El Niño-Oscilación del Sur, ENOS, en la isla Santa Cruz, el Consejo de Gobierno del Régimen Especial de Galápagos propone fortalecer el acompañamiento a sus servidores mediante una respuesta interdisciplinaria y telemática."
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "titulo": "Dos rutas de atención",
+   "frases": [
+    {
+     "id": "2",
+     "texto": "La propuesta contempla dos vías de acceso: atención prioritaria para servidores con riesgo alto validado profesionalmente y atención abierta para cualquier servidor del CGREG que labore en Santa Cruz y solicite acompañamiento."
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "titulo": "El equipo interdisciplinario",
+   "frases": [
+    {
+     "id": "3",
+     "texto": "Una brigada integrada por seis psicólogos clínicos, un médico epidemiólogo con experiencia en ayuda humanitaria y gestión de riesgos, y un psiquiatra para valoraciones especializadas por derivación. A esta respuesta se suma la articulación territorial con profesionales del ámbito educativo."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "titulo": "Alcance de los servicios",
+   "frases": [
+    {
+     "id": "4",
+     "texto": "El acompañamiento contempla atención psicológica individual, telemedicina, valoraciones psiquiátricas especializadas, seguimiento psicosocial, espacios de acompañamiento grupal y fortalecimiento de capacidades."
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "titulo": "CGREG Virtual Office",
+   "frases": [
+    {
+     "id": "5a",
+     "texto": "CGREG Virtual Office será el centro digital de operaciones de esta intervención.",
+     "clips": [
+      "01-ingreso[10:137]x1.3"
+     ]
+    },
+    {
+     "id": "5b",
+     "texto": "Permitirá coordinar a los profesionales,",
+     "clips": [
+      "02-oficina[0:60]",
+      "03-consultorios[0:112]",
+      "04-telemedicina[0:76]"
+     ]
+    },
+    {
+     "id": "5c",
+     "texto": "administrar las agendas,",
+     "clips": [
+      "05-agenda[0:76]x1.3"
+     ]
+    },
+    {
+     "id": "5d",
+     "texto": "registrar las atenciones,",
+     "clips": [
+      "06-atenciones[0:122]x1.3"
+     ]
+    },
+    {
+     "id": "5e",
+     "texto": "gestionar historias clínicas y consentimientos informados,",
+     "clips": [
+      "07-historias[0:176]x1.3"
+     ]
+    },
+    {
+     "id": "5f",
+     "texto": "monitorear el avance",
+     "clips": [
+      "08-comando[0:96]x1.3"
+     ]
+    },
+    {
+     "id": "5g",
+     "texto": "y recibir solicitudes que requieran articulación institucional.",
+     "clips": [
+      "09-solicitudes[0:83]x1.3"
+     ]
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "titulo": "Coordinación y seguimiento",
+   "frases": [
+    {
+     "id": "6a",
+     "texto": "Cuando los profesionales requieran apoyo institucional, podrán solicitarlo directamente desde la plataforma.",
+     "clips": [
+      "09-solicitudes[83:261]"
+     ]
+    },
+    {
+     "id": "6b",
+     "texto": "Coordinación General gestionará estos requerimientos y realizará seguimiento hasta obtener una respuesta."
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "titulo": "Cierre institucional",
+   "frases": [
+    {
+     "id": "7",
+     "texto": "Una respuesta que integra personas, profesionales, tecnología y articulación institucional para acercar los servicios a quienes más los necesitan."
+    }
+   ]
+  }
+ ],
+ "nota_clips": "Formato de clip: nombre[fotograma_inicial:fotograma_final]xVELOCIDAD (la interfaz se reproduce a 1,3×; la oficina 3D a velocidad real)."
+}
