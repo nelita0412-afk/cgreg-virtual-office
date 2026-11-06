@@ -18,7 +18,8 @@
     "user:create": "tsx --env-file=.env server/cli/create-user.ts",
     "sheets:check": "tsx --env-file=.env server/cli/sheets-check.ts",
     "test": "vitest run",
-    "e2e": "node e2e/smoke.mjs"
+    "e2e": "node e2e/smoke.mjs && node e2e/movimiento.mjs",
+    "e2e:movimiento": "node e2e/movimiento.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.1",

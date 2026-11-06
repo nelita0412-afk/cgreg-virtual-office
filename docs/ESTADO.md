@@ -1,6 +1,6 @@
 # Estado de la implementación
 
-Verificación: `npm test` ejecuta **63 pruebas**: las 37 originales sin cambios más 26 de la ampliación, contra PostgreSQL real. `npm run e2e` hace **14 comprobaciones con navegador**: las 10 originales más 4 nuevas.
+Verificación: `npm test` ejecuta **67 pruebas**: las 37 originales sin cambios, 26 de la ampliación y 4 de etiquetas, contra PostgreSQL real. `npm run e2e` hace **14 comprobaciones con navegador** (10 originales y 4 nuevas) más **14 comprobaciones de movimiento** (`npm run e2e:movimiento`).
 
 > Las 37 pruebas originales registran el consentimiento con la «constancia profesional» anterior a la ampliación; su instancia de prueba la habilita (`CONSENTIMIENTO_CONSTANCIA_PROFESIONAL=true`). En la configuración por defecto, la constancia **no** habilita la atención; las pruebas nuevas y el E2E usan esa configuración y el consentimiento documentado.
 
@@ -54,6 +54,28 @@ Verificación: `npm test` ejecuta **63 pruebas**: las 37 originales sin cambios 
 - Sin verificación criptográfica de PDF firmados con certificado.
 - Las intervenciones sociales no tienen adendas (cada corrección se hace con un nuevo registro).
 - El horario semanal se edita por API (sin editor visual), igual que antes.
+
+## Rediseño visual de la oficina 3D (noviembre 2026)
+
+Sin cambios en el backend (Fastify/PostgreSQL), las migraciones ni los módulos funcionales.
+
+### Implementado y verificado en navegador
+
+- Planta premium con ventanal panorámico, mamparas de cristal, materiales y mobiliario detallados; seis consultorios individuales, Telemedicina y Psiquiatría separadas, seis estaciones de Psicología espaciadas.
+- Avatares articulados con vestimenta profesional y posturas por estado; se levantan, recorren pasillos y puertas, y se sientan solo ante eventos reales del backend.
+- Nitidez: DPR nativo hasta 2, antialiasing, ACES, sRGB, anisotropía; calidad adaptativa con indicador de FPS.
+- Interfaz: el lienzo ocupa el 69 % de la ventana (antes, 29 %) y el 100 % en pantalla completa; KPI compactos; panel contextual superpuesto; vista general que encuadra toda la oficina.
+- Etiquetas sin superposición con líneas de referencia, abreviadas según el zoom; clic en persona (resalta y centra) y en sala (ficha del departamento).
+- Movimiento ambiental (desactivable): paseos breves con propósito (agua, impresora, tablero, estirarse) de quien no atiende; en consulta o reunión permanecen sentados atendiendo. No altera el estado real.
+- Bata blanca para psicólogas/os y médicos (estetoscopio en Telemedicina y Psiquiatría).
+- `npm run e2e:movimiento`: 14 comprobaciones (Gabriel inicia y finaliza la consulta, Demetrio en teleconsulta, Betsabé en Debriefing, ningún avatar camina sin eventos con el movimiento ambiental desactivado, 0 solapes de etiquetas, paseo ambiental de ida y vuelta sin cambiar el estado, quien atiende no se levanta), con capturas de cada transición en `e2e/out/`.
+
+### Limitaciones conocidas
+
+- Los FPS medidos en este entorno (1–4 FPS) corresponden a renderizado por software sin GPU y no son representativos; el indicador de la propia oficina muestra los FPS reales en cada equipo.
+- Las animaciones son procedurales (sin captura de movimiento); los rostros son estilizados, sin expresiones.
+- Con la cámara en movimiento, las etiquetas se reacomodan cada 80 ms; durante una transición pueden cambiar de posición brevemente.
+- Las texturas (ventanal, pisos, pantallas) se generan por código; no hay fotografías reales.
 
 ## Funcionalidad previa (se conserva)
 
