@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Users, Wifi, CheckCircle2, Stethoscope, UsersRound, CalendarDays, CalendarClock, Share2, Activity, BarChart3, CalendarRange, LayoutGrid, Box, ZoomIn, ZoomOut, Maximize2, Minimize2, Home, PanelRightClose, PanelRightOpen, X } from 'lucide-react';
+import { Activity, BarChart3, Box, CalendarClock, CalendarDays, CalendarRange, CheckCircle2, Footprints, Home, LayoutGrid, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Share2, Stethoscope, Users, UsersRound, Wifi, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { ProfesionalPanel } from '../components/ProfesionalPanel';
@@ -157,6 +157,25 @@ export default function Oficina() {
   const nav = useNavigate();
   const reducir = usePrefiereMenosMovimiento();
   const webgl = useMemo(soportaWebGL, []);
+  // Movimiento ambiental (paseos breves de quien no está atendiendo). ?ambiente=0 lo desactiva (pruebas).
+  const [ambiente, setAmbiente] = useState<boolean>(() => {
+    const q = new URLSearchParams(window.location.search).get('ambiente');
+    if (q === '0' || q === '1') return q === '1';
+    try {
+      return localStorage.getItem('cgreg.ambiente') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const cambiarAmbiente = () =>
+    setAmbiente((a) => {
+      try {
+        localStorage.setItem('cgreg.ambiente', a ? '0' : '1');
+      } catch {
+        /* sin almacenamiento: solo esta sesión */
+      }
+      return !a;
+    });
   const [modo, setModo] = useState<'3d' | 'lista'>(() => {
     try {
       const v = localStorage.getItem('cgreg.vista');
@@ -243,7 +262,7 @@ export default function Oficina() {
           <Spinner label="Cargando oficina…" />
         ) : modo === '3d' && webgl ? (
           <Suspense fallback={<Spinner label="Preparando entorno 3D…" />}>
-            <OfficeScene presencia={lista} seleccionado={sala ? null : clave} onSelect={seleccionar} onZona={abrirSala} foco={foco} reducirMovimiento={reducir} reservaDerecha={panel ? 356 : 0} />
+            <OfficeScene presencia={lista} seleccionado={sala ? null : clave} onSelect={seleccionar} onZona={abrirSala} foco={foco} reducirMovimiento={reducir} reservaDerecha={panel ? 356 : 0} ambiente={ambiente} />
           </Suspense>
         ) : (
           <div className="h-full overflow-y-auto pt-12"><OfficeList lista={lista} onSelect={(c) => seleccionar(c)} seleccionado={clave} /></div>
@@ -266,6 +285,15 @@ export default function Oficina() {
                 <button className="btn-ghost btn-sm" onClick={() => enfocar('general')} aria-label="Vista general"><Home size={14} /></button>
               </>
             )}
+            <button
+              className={`btn-ghost btn-sm ${ambiente ? 'text-cyan-300' : ''}`}
+              onClick={cambiarAmbiente}
+              aria-pressed={ambiente}
+              aria-label={ambiente ? 'Pausar movimiento ambiental' : 'Activar movimiento ambiental'}
+              title="Movimiento ambiental: quien no está en consulta ni en reunión da paseos breves (agua, impresora, tablero) y vuelve a su puesto. No cambia su estado real."
+            >
+              <Footprints size={14} />
+            </button>
             <button className="btn-ghost btn-sm" onClick={pantallaCompleta} aria-label={completa ? 'Salir de pantalla completa' : 'Pantalla completa'}>{completa ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
             <button className="btn-ghost btn-sm" onClick={() => setModo(modo === '3d' ? 'lista' : '3d')} disabled={!webgl && modo === 'lista'}>
               {modo === '3d' ? <><LayoutGrid size={14} /> Lista</> : <><Box size={14} /> 3D</>}

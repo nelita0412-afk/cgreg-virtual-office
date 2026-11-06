@@ -2,16 +2,16 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ESTADO_PRESENCIA_COLOR, type PresenciaSnapshot } from '@shared/domain';
-import { ENTRADA, ruta, type Pose, type Slot, type V2 } from './layout';
+import { ENTRADA, SIN_PASEO, elegirParada, ruta, type Parada, type Pose, type Slot, type V2 } from './layout';
 
 /** Posición viva de cada avatar (la usan las etiquetas inteligentes y las pruebas visuales). */
-export const registroAvatares = new Map<string, { x: number; z: number; visible: boolean; caminando: boolean; sentado: number; pose: string }>();
+export const registroAvatares = new Map<string, { x: number; z: number; visible: boolean; caminando: boolean; sentado: number; pose: string; paseo: boolean }>();
 
 // ---------- Apariencia (estilo profesional por persona; colores desde el registro profesional) ----------
 interface Estilo {
   pelo: 'corto' | 'largo' | 'mono' | 'ondulado';
   lentes: boolean;
-  bata: boolean; // médicos
+  bata: boolean; // personal clínico (Psicología y Medicina)
   saco: string; // color de la prenda superior
   camisa: string;
   pantalon: string;
@@ -23,8 +23,8 @@ const ESTILOS: Record<string, Partial<Estilo>> = {
   'sofia-guerra': { pelo: 'mono', saco: '#e7e5e4', camisa: '#a8a29e' },
   'betsabe-cordova': { pelo: 'ondulado', saco: '#5b3fa0', camisa: '#ede9fe' },
   'zally-pamela': { pelo: 'largo', saco: '#9d2a5c', camisa: '#fce7f3' },
-  'demetrio-magallanes': { pelo: 'corto', bata: true, saco: '#f8fafc', camisa: '#93c5fd' },
-  'diego-estrella': { pelo: 'corto', lentes: true, bata: true, saco: '#f8fafc', camisa: '#1e3a8a' },
+  'demetrio-magallanes': { pelo: 'corto', camisa: '#93c5fd' },
+  'diego-estrella': { pelo: 'corto', lentes: true, camisa: '#1e3a8a' },
   'andrea-mayorga': { pelo: 'mono', saco: '#c2410c', camisa: '#ffedd5' },
 };
 const PIELES = ['#c58c6a', '#a8714f', '#d9a07c', '#8d5a3b', '#e0ac85', '#b67b58'];
@@ -56,10 +56,15 @@ const G = {
   credencial: new THREE.BoxGeometry(0.06, 0.085, 0.01),
   cuelloCamisa: new THREE.ConeGeometry(0.07, 0.09, 3),
   anillo: new THREE.RingGeometry(0.38, 0.5, 40),
+  boligrafo: new THREE.CylinderGeometry(0.008, 0.008, 0.075, 8),
+  estetoscopio: new THREE.TorusGeometry(0.105, 0.009, 6, 24, Math.PI * 1.15),
+  campana: new THREE.CylinderGeometry(0.022, 0.022, 0.012, 14),
+  solapa: new THREE.BoxGeometry(0.035, 0.26, 0.012),
   disco: new THREE.CircleGeometry(0.75, 40),
 };
 
-const SPEED = 3.2; // m/s (acelerado para que el desplazamiento se perciba sin tardar demasiado)
+const SPEED = 3.2; // m/s ante eventos reales (acelerado para que el traslado se perciba sin tardar demasiado)
+const SPEED_PASEO = 1.7; // m/s en paseos ambientales (andar tranquilo)
 const SENTADO: Pose[] = ['sentado_trabajo', 'sentado_teclear', 'sentado_conversar', 'sentado_relajado'];
 
 interface Props {
@@ -69,6 +74,8 @@ interface Props {
   onSelect: (pos: V2) => void;
   reducirMovimiento: boolean;
   sombras: boolean;
+  /** Paseos breves mientras no atiende (no cambian el estado real). */
+  ambiente?: boolean;
 }
 
 /**
@@ -76,7 +83,7 @@ interface Props {
  * backend: al cambiar la zona se levanta, recorre los pasillos, entra por la puerta y adopta la postura de la
  * actividad (consulta, documentación, reunión…). Si se desconecta, sale por la entrada.
  */
-export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, sombras }: Props) {
+export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, sombras, ambiente = false }: Props) {
   const R = {
     root: useRef<THREE.Group>(null!),
     pelvis: useRef<THREE.Group>(null!),
@@ -94,8 +101,16 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
   };
   const seed = useMemo(() => (hash(p.clave) % 1000) / 1000, [p.clave]);
   const estilo: Estilo = useMemo(
-    () => ({ pelo: 'corto', lentes: false, bata: false, saco: p.color ?? '#0e7490', camisa: '#e2e8f0', pantalon: '#1f2937', ...(ESTILOS[p.profesional_id ?? ''] ?? {}) }),
-    [p.profesional_id, p.color],
+    () => {
+      const e: Estilo = { pelo: 'corto', lentes: false, bata: false, saco: p.color ?? '#0e7490', camisa: '#e2e8f0', pantalon: '#1f2937', ...(ESTILOS[p.profesional_id ?? ''] ?? {}) };
+      // Bata blanca para todo el personal clínico: psicólogas/os y médicos (Telemedicina y Psiquiatría).
+      if (p.especialidad) {
+        e.bata = true;
+        e.saco = '#f5f7fa';
+      }
+      return e;
+    },
+    [p.profesional_id, p.color, p.especialidad],
   );
   const mat = useMemo(() => {
     const m = (color: string, rough = 0.75) => new THREE.MeshStandardMaterial({ color, roughness: rough });
@@ -109,6 +124,10 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
       oscuro: new THREE.MeshBasicMaterial({ color: '#111827' }),
       lente: new THREE.MeshStandardMaterial({ color: '#1f2937', metalness: 0.7, roughness: 0.3 }),
       credencial: m('#e0f2fe', 0.4),
+      solapa: m('#e2e8f0', 0.6),
+      boligrafo: m('#1d4ed8', 0.3),
+      estetoscopio: m('#1f2937', 0.5),
+      metal: new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.9, roughness: 0.25 }),
       estado: new THREE.MeshBasicMaterial({ color: ESTADO_PRESENCIA_COLOR[p.estado], transparent: true, opacity: 0.9, depthWrite: false }),
       sel: new THREE.MeshBasicMaterial({ color: '#22d3ee', transparent: true, opacity: 0.22, depthWrite: false }),
     };
@@ -129,10 +148,17 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
     pose: (slot?.pose ?? 'de_pie') as Pose,
     puertaActual: slot?.puerta as V2 | undefined,
     init: false,
+    /** Paseo ambiental en curso: ida → acción → vuelta. Un evento real lo cancela. */
+    paseo: null as null | { fase: 'ida' | 'accion' | 'vuelta'; parada: Parada; hasta: number },
+    proximo: -1,
   });
 
   useEffect(() => {
     const s = st.current;
+    // Un cambio real de estado o de lugar tiene prioridad sobre cualquier paseo ambiental.
+    if (s.paseo) s.puertaActual = undefined; // estaba fuera de su puesto: la ruta parte del pasillo
+    s.paseo = null;
+    s.proximo = -1;
     if (!s.init) {
       // Carga inicial = recuperación de estado: se ubica sin simular desplazamientos que no ocurrieron ahora.
       s.init = true;
@@ -172,13 +198,36 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
     if (!g) return;
     const dt = Math.min(dtRaw, 0.5); // basado en tiempo real: la velocidad no depende de los FPS
     g.visible = s.visible;
+    const tc = state.clock.elapsedTime;
+    const volver = () => {
+      if (!slot || !s.paseo) return;
+      s.paseo.fase = 'vuelta';
+      s.pendiente = ruta(s.pos, slot.pos, undefined, slot.puerta);
+      s.rotTarget = slot.rot;
+      s.puertaActual = slot.puerta;
+    };
+    const elegible = ambiente && !reducirMovimiento && !!slot && s.visible && !SIN_PASEO.has(p.estado) && slot.pose !== 'de_pie_presentar';
+    if (!elegible && s.paseo && s.paseo.fase !== 'vuelta') volver();
+    if (elegible && slot && !s.paseo && !s.path.length && !s.pendiente && Math.abs(s.sit - s.sitTarget) < 0.02) {
+      // Espera en su puesto antes del siguiente paseo: más larga si está documentando.
+      if (s.proximo < 0) s.proximo = tc + (p.estado === 'en_documentacion' ? 18 + Math.random() * 17 : 6 + Math.random() * 8);
+      else if (tc >= s.proximo) {
+        const parada = elegirParada(slot, p.estado, Math.random());
+        s.paseo = { fase: 'ida', parada, hasta: 0 };
+        s.pendiente = ruta(s.pos, parada.pos, s.puertaActual, undefined);
+        s.sitTarget = 0;
+        s.rotTarget = parada.rot;
+        s.puertaActual = undefined;
+      }
+    }
+    if (s.paseo?.fase === 'accion' && tc >= s.paseo.hasta) volver();
     if (s.pendiente && s.sit < 0.05) {
       s.path = s.pendiente;
       s.pendiente = null;
     }
     let moving = false;
     if (s.path.length && s.sit < 0.05) {
-      let step = dt * SPEED;
+      let step = dt * (s.paseo ? SPEED_PASEO : SPEED);
       while (step > 0 && s.path.length) {
         const [tx, tz] = s.path[0];
         const dx = tx - s.pos[0];
@@ -197,7 +246,15 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
       }
       if (!s.path.length) {
         if (!slot) s.visible = false; // salió por la entrada
-        else s.sitTarget = SENTADO.includes(slot.pose) ? 1 : 0;
+        else if (s.paseo?.fase === 'ida') {
+          s.paseo.fase = 'accion';
+          s.paseo.hasta = tc + 3.5 + Math.random() * 3.5;
+          s.sitTarget = 0;
+        } else {
+          s.paseo = null;
+          s.proximo = -1;
+          s.sitTarget = SENTADO.includes(slot.pose) ? 1 : 0;
+        }
       }
     }
     if (!moving && !s.path.length && !s.pendiente) s.rot = lerpAngle(s.rot, s.rotTarget, Math.min(1, dt * 6));
@@ -233,7 +290,8 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
     let hD = { x: sw * 0.8, z: -0.08 };
     let cI = moving ? -0.25 : -0.1;
     let cD = moving ? -0.25 : -0.1;
-    const pose = s.path.length || s.pendiente ? 'de_pie' : s.pose;
+    const pose = s.path.length || s.pendiente ? 'de_pie' : s.paseo ? 'de_pie' : s.pose;
+    const accion = !moving && s.paseo?.fase === 'accion' ? s.paseo.parada.accion : null;
     if (!moving && sit > 0.5) {
       if (pose === 'sentado_teclear' || pose === 'sentado_trabajo') {
         // Manos sobre el teclado; tecleo (documentación) o uso ocasional del ratón y giro de cabeza.
@@ -246,6 +304,16 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
         cabX = 0.18;
         const mirar = Math.sin(t * 0.35) > 0.82 ? Math.sin(t * 0.35 * 6) * 0.5 : 0;
         cabY = (pose === 'sentado_trabajo' ? mirar : 0) * quieto;
+        // De vez en cuando se recuesta y estira los brazos (pausa activa breve en su silla).
+        const estira = Math.max(0, Math.sin(t * 0.21 + seed * 9) - 0.9) * 10 * quieto;
+        if (estira > 0) {
+          hI = { x: THREE.MathUtils.lerp(hI.x, -2.7, estira), z: 0.3 };
+          hD = { x: THREE.MathUtils.lerp(hD.x, -2.7, estira), z: -0.3 };
+          cI = THREE.MathUtils.lerp(cI, -0.2, estira);
+          cD = THREE.MathUtils.lerp(cD, -0.2, estira);
+          torsoX = THREE.MathUtils.lerp(torsoX, -0.15, estira);
+          cabX = THREE.MathUtils.lerp(cabX, -0.2, estira);
+        }
       } else if (pose === 'sentado_conversar') {
         // Consulta / reunión: asiente, gesticula con una mano, mira al interlocutor o la pantalla.
         const gesto = Math.max(0, Math.sin(t * 0.9)) * quieto;
@@ -263,6 +331,36 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
         cD = -0.6;
         torsoX = -0.18;
         cabY = Math.sin(t * 0.3) * 0.4 * quieto;
+      }
+    } else if (accion) {
+      // Acciones del paseo ambiental, de pie frente al punto de interés.
+      if (accion === 'beber') {
+        const k = Math.max(0, Math.sin(t * 1.2)) * quieto;
+        hD = { x: -0.9 - 0.55 * k, z: -0.12 };
+        cD = -1.5 - 0.7 * k;
+        hI = { x: 0.05, z: 0.1 };
+        cabX = -0.15 * k;
+      } else if (accion === 'imprimir') {
+        hI = { x: -0.75, z: 0.12 };
+        hD = { x: -0.75 + Math.sin(t * 3) * 0.08 * quieto, z: -0.12 };
+        cI = -0.55;
+        cD = -0.6;
+        cabX = 0.35;
+        torsoX = 0.15;
+      } else if (accion === 'leer') {
+        hI = { x: 0.1, z: 0.06 };
+        hD = { x: -0.45, z: -0.12 };
+        cD = -1.75; // mano en el mentón
+        cabX = -0.1;
+        cabY = Math.sin(t * 0.6) * 0.35 * quieto;
+      } else {
+        const k = ((Math.sin(t * 1.1) + 1) / 2) * quieto;
+        hI = { x: -2.6 * k, z: 0.28 };
+        hD = { x: -2.6 * k, z: -0.28 };
+        cI = -0.3 * k;
+        cD = -0.3 * k;
+        torsoX = -0.1 * k;
+        cabX = -0.15 * k;
       }
     } else if (!moving && pose === 'de_pie_presentar') {
       // Facilitador: señala la pantalla y gira hacia el público.
@@ -292,7 +390,7 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
       const pulso = (p.estado === 'en_consulta' || p.estado === 'en_reunion') && !reducirMovimiento ? 1 + Math.sin(t * 3) * 0.06 : 1;
       R.anillo.current.scale.setScalar(seleccionado ? 1.25 : pulso);
     }
-    registroAvatares.set(p.clave, { x: s.pos[0], z: s.pos[1], visible: s.visible, caminando: moving, sentado: sit, pose });
+    registroAvatares.set(p.clave, { x: s.pos[0], z: s.pos[1], visible: s.visible, caminando: moving, sentado: sit, pose: accion ? `paseo:${accion}` : pose, paseo: !!s.paseo });
   });
   useEffect(() => () => void registroAvatares.delete(p.clave), [p.clave]);
 
@@ -339,7 +437,19 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
         <group ref={R.torso}>
           <mesh geometry={G.torso} material={mat.camisa} position={[0, 0.31, 0]} scale={[1.22, 1, 0.8]} castShadow={sh} />
           {estilo.bata ? (
-            <mesh geometry={G.bata} material={mat.saco} position={[0, 0.15, -0.005]} scale={[1.18, 1, 0.82]} castShadow={sh} />
+            <>
+              <mesh geometry={G.bata} material={mat.saco} position={[0, 0.15, -0.005]} scale={[1.18, 1, 0.82]} castShadow={sh} />
+              {[-1, 1].map((l) => (
+                <mesh key={l} geometry={G.solapa} material={mat.solapa} position={[0.055 * l, 0.42, 0.142]} rotation={[0.12, 0, 0.32 * l]} />
+              ))}
+              <mesh geometry={G.boligrafo} material={mat.boligrafo} position={[-0.11, 0.37, 0.147]} />
+              {p.especialidad && p.especialidad !== 'psicologia' && (
+                <>
+                  <mesh geometry={G.estetoscopio} material={mat.estetoscopio} position={[0, 0.5, 0.06]} rotation={[Math.PI * 0.42, 0, Math.PI * 1.43]} />
+                  <mesh geometry={G.campana} material={mat.metal} position={[0.06, 0.33, 0.15]} rotation={[Math.PI / 2, 0, 0]} />
+                </>
+              )}
+            </>
           ) : (
             <mesh geometry={G.saco} material={mat.saco} position={[0, 0.3, -0.012]} scale={[1.24, 1, 0.8]} castShadow={sh} />
           )}

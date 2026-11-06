@@ -539,3 +539,62 @@ export function SalaCristal({
     </group>
   );
 }
+
+/* ------------------- Puntos de interés de los paseos ambientales ------------------- */
+export function Dispensador({ position, rot = 0, m }: { position: [number, number, number]; rot?: number; m: Mats }) {
+  return (
+    <group position={position} rotation={[0, rot, 0]}>
+      <mesh position={[0, 0.5, 0]} material={m.blanco} castShadow>
+        <boxGeometry args={[0.42, 1.0, 0.42]} />
+      </mesh>
+      <mesh position={[0, 0.72, 0.215]} material={m.negro}>
+        <boxGeometry args={[0.22, 0.14, 0.02]} />
+      </mesh>
+      <mesh position={[0, 1.25, 0]} castShadow>
+        <cylinderGeometry args={[0.17, 0.17, 0.5, 20]} />
+        <meshPhysicalMaterial color="#7cc4f2" transparent opacity={0.55} roughness={0.05} />
+      </mesh>
+    </group>
+  );
+}
+
+export function Impresora({ position, rot = 0, m }: { position: [number, number, number]; rot?: number; m: Mats }) {
+  return (
+    <group position={position} rotation={[0, rot, 0]}>
+      <mesh position={[0, 0.38, 0]} material={m.blanco} castShadow>
+        <boxGeometry args={[0.7, 0.76, 0.6]} />
+      </mesh>
+      <mesh position={[0, 0.88, 0]} material={m.aluminio} castShadow>
+        <boxGeometry args={[0.62, 0.24, 0.54]} />
+      </mesh>
+      <mesh position={[0, 1.005, -0.05]} material={m.blanco}>
+        <boxGeometry args={[0.3, 0.01, 0.4]} />
+      </mesh>
+      <mesh position={[0.22, 0.95, 0.275]} material={m.negro}>
+        <boxGeometry args={[0.14, 0.08, 0.02]} />
+      </mesh>
+    </group>
+  );
+}
+
+export function Tablero({ position, rot = 0, m }: { position: [number, number, number]; rot?: number; m: Mats }) {
+  const notas = ['#fde68a', '#bfdbfe', '#bbf7d0', '#fecaca', '#e9d5ff', '#fde68a'];
+  return (
+    <group position={position} rotation={[0, rot, 0]}>
+      {[-0.55, 0.55].map((x) => (
+        <mesh key={x} position={[x, 0.75, 0]} material={m.aluminio}>
+          <boxGeometry args={[0.05, 1.5, 0.05]} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.4, 0]} material={m.madera} castShadow>
+        <boxGeometry args={[1.2, 0.8, 0.04]} />
+      </mesh>
+      {notas.map((c, i) => (
+        <mesh key={i} position={[-0.38 + (i % 3) * 0.38, 1.55 - Math.floor(i / 3) * 0.32, 0.025]}>
+          <boxGeometry args={[0.22, 0.2, 0.005]} />
+          <meshStandardMaterial color={c} roughness={0.8} />
+        </mesh>
+      ))}
+    </group>
+  );
+}

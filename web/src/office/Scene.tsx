@@ -6,10 +6,10 @@ import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import { ESTADO_PRESENCIA_COLOR, ESTADO_PRESENCIA_LABEL, type PresenciaSnapshot, type Zona } from '@shared/domain';
 import { Human, registroAvatares } from './Human';
 import {
-  Escritorio, Estanteria, Planta, SalaCristal, Silla, Sofa, useAlfombra, useCanvasTexture, useMateriales, useParquet, usePantallas, usePorcelanato,
+  Dispensador, Escritorio, Estanteria, Impresora, Planta, SalaCristal, Silla, Sofa, Tablero, useAlfombra, useCanvasTexture, useMateriales, useParquet, usePantallas, usePorcelanato,
   useTextoTextura, useVentanal, type Mats,
 } from './Furniture';
-import { CABINAS, ESTACIONES_PSI, PISO, ROOMS, ZONES_ABIERTAS, slotPara, type V2 } from './layout';
+import { CABINAS, ESTACIONES_PSI, PISO, PUNTOS_MUEBLES, ROOMS, ZONES_ABIERTAS, slotPara, type V2 } from './layout';
 import { etiquetasStore, ubicarEtiquetas, type Anclaje } from './labels';
 import { Fusionar } from './Fusionar';
 
@@ -27,6 +27,8 @@ interface Props {
   foco: Foco;
   reducirMovimiento: boolean;
   reservaDerecha?: number;
+  /** Paseos breves de quienes no están atendiendo (no cambian su estado real). */
+  ambiente?: boolean;
 }
 
 /** Calidad adaptativa observable (FPS medidos y nivel de calidad aplicado). */
@@ -261,7 +263,7 @@ function Estacion({ x, z, m, encendida, tex }: { x: number; z: number; m: Mats; 
   );
 }
 
-function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimiento, sombras, reservaDerecha }: Props & { sombras: boolean }) {
+function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimiento, sombras, reservaDerecha, ambiente }: Props & { sombras: boolean }) {
   const controls = useRef<MapControlsImpl>(null!);
   const m = useMateriales();
   const piso = usePorcelanato();
@@ -571,8 +573,16 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
       </group>
 
       {/* Plantas de ambientación y acceso */}
-      {[[-30.5, 18.5], [-30.5, -8], [5.2, 18.5], [12.5, -7.2], [-10.5, -7.2], [30.5, 7.8], [-5.5, 3.5], [5.5, 3.6]].map(([x, z], i) => (
+      {[[-30.5, 18.5], [-30.5, -8], [5.2, 18.5], [12.5, -7.2], [-10.5, -7.2], [30.5, 9.4], [-5.5, 3.5], [5.5, 3.6]].map(([x, z], i) => (
         <Planta key={i} position={[x, 0, z]} m={m} scale={1.25} tipo={i % 2} />
+      ))}
+      {/* Puntos de interés de los paseos: dispensadores de agua, impresora y tableros informativos */}
+      {PUNTOS_MUEBLES.dispensadores.map(([x, z]) => (
+        <Dispensador key={x} position={[x, 0, z]} rot={x < 0 ? Math.PI / 2 : -Math.PI / 2} m={m} />
+      ))}
+      <Impresora position={[PUNTOS_MUEBLES.impresora[0], 0, PUNTOS_MUEBLES.impresora[1]]} rot={Math.PI} m={m} />
+      {PUNTOS_MUEBLES.tableros.map(([x, z]) => (
+        <Tablero key={x} position={[x, 0, z]} m={m} />
       ))}
       <mesh position={[0, 0.015, 19.3]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[4, 1.2]} />
@@ -591,6 +601,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
           onSelect={(pos) => onSelect(p.clave, pos)}
           reducirMovimiento={reducirMovimiento}
           sombras={sombras}
+          ambiente={ambiente}
         />
       ))}
     </>

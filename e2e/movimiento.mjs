@@ -49,7 +49,8 @@ const srvA = (await c.query(`insert into ops.servidores (clave_fuente,nombre,cod
 const srvB = (await c.query(`insert into ops.servidores (clave_fuente,nombre,codigo_institucional) values ('MOV:2','Servidor Prueba Dos','MOV-2') returning id`)).rows[0].id;
 
 const br = await chromium.launch();
-async function sesion(email, url = '/?calidad=baja') {
+// ambiente=0: las verificaciones de eventos parten sin paseos ambientales; la sección 6 los activa.
+async function sesion(email, url = '/?calidad=baja&ambiente=0') {
   const ctx = await br.newContext({ viewport: { width: 1200, height: 760 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error(`[${email}]`, e.message));
@@ -199,6 +200,37 @@ try {
     }
   check(rects.length > 0 && solap === 0, `Etiquetas visibles sin superposición (${rects.length} etiquetas, ${solap} solapes)`);
   await coord.page.screenshot({ path: `${OUT}movimiento-7-vista-general.png` });
+
+  // ---------- 6. Movimiento ambiental: pasea quien no atiende; quien está en consulta o reunión no se levanta ----------
+  await gabriel.api('POST', '/api/office/estado', { estado: 'disponible' });
+  await coord.page.click('button[aria-label="Activar movimiento ambiental"]');
+  const vigilados = ['demetrio-magallanes', 'betsabe-cordova'];
+  const seLevanto = new Set();
+  const esperarVigilando = async (cond, ms) => {
+    const t0 = Date.now();
+    let ult = null;
+    while (Date.now() - t0 < ms) {
+      const todos = await coord.page.evaluate(() => window.__cgregOffice.avatares());
+      for (const k of vigilados) if (todos[k] && (todos[k].paseo || todos[k].caminando || todos[k].sentado < 0.9)) seLevanto.add(k);
+      ult = todos['gabriel-ordonez'];
+      if (ult && cond(ult)) return ult;
+      await sleep(700);
+    }
+    return ult;
+  };
+  a = await esperarVigilando((x) => x.paseo && x.caminando, 60000);
+  check(a?.paseo && a?.caminando, 'Movimiento ambiental: Gabriel (disponible) se levanta y sale a dar un paseo breve');
+  // Vista de su zona antes de que llegue: la captura se toma en el momento exacto de la acción.
+  await coord.page.click('button[aria-label="Cerrar panel"]', { timeout: 1500 }).catch(() => {});
+  await coord.page.click('button:has-text("Psicología Clínica")');
+  a = await esperarVigilando((x) => x.pose.startsWith('paseo:'), 90000);
+  await coord.page.screenshot({ path: `${OUT}movimiento-8-paseo-ambiental.png` });
+  check(a?.pose.startsWith('paseo:'), `Gabriel realiza una acción en el punto de interés (${a?.pose})`);
+  a = await esperarVigilando((x) => !x.paseo && cerca(x, -26, 12.55) && x.sentado > 0.9, 120000);
+  check(a && !a.paseo && cerca(a, -26, 12.55), 'Gabriel vuelve a su escritorio y se sienta al terminar el paseo');
+  check(seLevanto.size === 0, `En consulta (Demetrio) y en reunión (Betsabé) permanecen sentados atendiendo${seLevanto.size ? ': se levantó ' + [...seLevanto].join(', ') : ''}`);
+  const est = (await coord.api('GET', '/api/office/presencia')).find((x) => x.profesional_id === 'gabriel-ordonez');
+  check(est?.estado === 'disponible', 'El paseo no cambia el estado real (sigue «Disponible»)');
 } catch (e) {
   console.error(e);
   fallos.push(String(e));

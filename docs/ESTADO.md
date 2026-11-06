@@ -1,6 +1,6 @@
 # Estado de la implementación
 
-Verificación: `npm test` ejecuta **67 pruebas**: las 37 originales sin cambios, 26 de la ampliación y 4 de etiquetas, contra PostgreSQL real. `npm run e2e` hace **14 comprobaciones con navegador** (10 originales y 4 nuevas) más **10 comprobaciones de movimiento** (`npm run e2e:movimiento`).
+Verificación: `npm test` ejecuta **67 pruebas**: las 37 originales sin cambios, 26 de la ampliación y 4 de etiquetas, contra PostgreSQL real. `npm run e2e` hace **14 comprobaciones con navegador** (10 originales y 4 nuevas) más **14 comprobaciones de movimiento** (`npm run e2e:movimiento`).
 
 > Las 37 pruebas originales registran el consentimiento con la «constancia profesional» anterior a la ampliación; su instancia de prueba la habilita (`CONSENTIMIENTO_CONSTANCIA_PROFESIONAL=true`). En la configuración por defecto, la constancia **no** habilita la atención; las pruebas nuevas y el E2E usan esa configuración y el consentimiento documentado.
 
@@ -66,7 +66,9 @@ Sin cambios en el backend (Fastify/PostgreSQL), las migraciones ni los módulos 
 - Nitidez: DPR nativo hasta 2, antialiasing, ACES, sRGB, anisotropía; calidad adaptativa con indicador de FPS.
 - Interfaz: el lienzo ocupa el 69 % de la ventana (antes, 29 %) y el 100 % en pantalla completa; KPI compactos; panel contextual superpuesto; vista general que encuadra toda la oficina.
 - Etiquetas sin superposición con líneas de referencia, abreviadas según el zoom; clic en persona (resalta y centra) y en sala (ficha del departamento).
-- `npm run e2e:movimiento`: 10 comprobaciones (Gabriel inicia y finaliza la consulta, Demetrio en teleconsulta, Betsabé en Debriefing, ningún avatar camina sin eventos, 0 solapes de etiquetas), con capturas de cada transición en `e2e/out/`.
+- Movimiento ambiental (desactivable): paseos breves con propósito (agua, impresora, tablero, estirarse) de quien no atiende; en consulta o reunión permanecen sentados atendiendo. No altera el estado real.
+- Bata blanca para psicólogas/os y médicos (estetoscopio en Telemedicina y Psiquiatría).
+- `npm run e2e:movimiento`: 14 comprobaciones (Gabriel inicia y finaliza la consulta, Demetrio en teleconsulta, Betsabé en Debriefing, ningún avatar camina sin eventos con el movimiento ambiental desactivado, 0 solapes de etiquetas, paseo ambiental de ida y vuelta sin cambiar el estado, quien atiende no se levanta), con capturas de cada transición en `e2e/out/`.
 
 ### Limitaciones conocidas
 

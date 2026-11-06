@@ -140,3 +140,46 @@ export function ruta(desde: V2, hasta: V2, puertaDesde?: V2, puertaHasta?: V2): 
   }
   return out;
 }
+
+/* ------------------------- Movimiento ambiental (paseos breves) ------------------------- */
+// Recorridos cortos y con propósito (beber agua, retirar una impresión, leer el tablero, estirarse).
+// No cambian el estado real: al terminar, la persona vuelve a su puesto. En consulta o reunión no hay paseos.
+export type Accion = 'beber' | 'imprimir' | 'leer' | 'estirarse';
+export interface Parada {
+  pos: V2;
+  rot: number;
+  accion: Accion;
+}
+/** Mobiliario de los puntos de interés (se dibuja en la escena). */
+export const PUNTOS_MUEBLES = {
+  dispensadores: [[-30.9, 7.4], [30.9, 7.4]] as V2[],
+  impresora: [5.5, 9.5] as V2,
+  tableros: [[-9.2, -7.42], [11.3, -7.42]] as V2[],
+};
+const PARADAS: Parada[] = [
+  { pos: [-30.0, 7.4], rot: -Math.PI / 2, accion: 'beber' },
+  { pos: [30.0, 7.4], rot: Math.PI / 2, accion: 'beber' },
+  { pos: [5.5, 8.4], rot: 0, accion: 'imprimir' },
+  { pos: [-9.2, -6.4], rot: Math.PI, accion: 'leer' },
+  { pos: [11.3, -6.4], rot: Math.PI, accion: 'leer' },
+];
+/** Estados en los que la persona permanece en su lugar (atendiendo). */
+export const SIN_PASEO = new Set(['en_consulta', 'en_reunion', 'desconectado']);
+
+const largo = (desde: V2, camino: V2[]) => camino.reduce((acc, p, i) => acc + Math.hypot(p[0] - (i ? camino[i - 1][0] : desde[0]), p[1] - (i ? camino[i - 1][1] : desde[1])), 0);
+/** Distancia máxima de un paseo (ida) en metros: recorridos cortos, nunca deambular por toda la oficina. */
+const PASEO_MAX = 26;
+
+/** Elige una parada cercana (por distancia real recorrida en pasillos); r ∈ [0, 1) aporta variedad. */
+export function elegirParada(home: Slot, estado: string, r: number): Parada {
+  const base = home.puerta ?? home.pos;
+  const d = (p: Parada) => largo(home.pos, ruta(home.pos, p.pos, home.puerta, undefined));
+  const alcanzables = PARADAS.filter((p) => d(p) <= PASEO_MAX).sort((a, b) => d(a) - d(b));
+  if (estado === 'en_pausa') {
+    const agua = alcanzables.find((p) => p.accion === 'beber');
+    if (agua) return agua;
+  }
+  const cercanas = alcanzables.slice(0, 3);
+  const opciones: Parada[] = [...cercanas, { pos: [base[0] + (r < 0.5 ? 1.4 : -1.4), corredorCercano(base[1])], rot: r < 0.5 ? Math.PI / 2 : -Math.PI / 2, accion: 'estirarse' }];
+  return opciones[Math.min(opciones.length - 1, Math.floor(r * opciones.length))];
+}
