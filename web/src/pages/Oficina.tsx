@@ -147,7 +147,7 @@ function IndicadorCalidad() {
   if (fps === '0') return null;
   return (
     <span className="chip bg-slate-950/70 text-[10.5px] tabular-nums text-slate-300" title="FPS medidos en este navegador y resolución de renderizado aplicada (calidad adaptativa)">
-      {fps} FPS · {nivel === 'alta' ? 'Calidad alta' : nivel === 'media' ? 'Calidad media' : 'Calidad reducida'} · DPR {dpr}
+      {fps} FPS · {nivel === 'alta' ? 'Calidad alta' : nivel === 'media' ? 'Calidad media' : 'Calidad reducida'} · DPR {Math.round(Number(dpr) * 100) / 100}
     </span>
   );
 }
