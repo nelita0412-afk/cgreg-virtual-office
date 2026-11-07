@@ -18,7 +18,7 @@ def rango(ref):
     a = int(m.group(2)) if m.group(2) else 0; b = min(n, int(m.group(3))) if m.group(3) else n
     return c, a, b, float(m.group(4) or 1)
 
-MAPA_SEG = 10.8   # duración de la secuencia cartográfica dentro de la escena 1
+MAPA_SEG = 9.8   # 10,8 s de animación cartográfica reproducidos a 1,1×   # duración de la secuencia cartográfica dentro de la escena 1
 t = 0.0
 escenas, voz, edl = [], [], []
 for e in N['escenas']:
@@ -28,7 +28,7 @@ for e in N['escenas']:
     if e['n'] in (5, 6):
         cur = ini
         for i, f in enumerate(frases):
-            arranque = cur + (1.0 if f['id'] == '5a' else 0.3)
+            arranque = cur + (0.5 if f['id'] == '5a' else 0.2)
             if 'clips' in f:
                 g0 = cur
                 for ref in f['clips']:
@@ -36,21 +36,21 @@ for e in N['escenas']:
                     edl.append({'clip': c, 'f0': a, 'f1': b, 'vel': vel, 'ini': round(cur, 3)})
                     cur += (b - a) / FPS / vel
                 # la frase debe caber en su tramo: si no, se prolonga el último plano (mantiene el último fotograma)
-                fin_voz = arranque + d[f['id']] + 0.35
+                fin_voz = arranque + d[f['id']] + 0.2
                 if fin_voz > cur: cur = fin_voz
             else:
-                arranque = voz[-1]['ini'] + voz[-1]['dur'] + 0.35
-                cur = max(cur, arranque + d[f['id']] + 0.9)
+                arranque = voz[-1]['ini'] + voz[-1]['dur'] + 0.3
+                cur = max(cur, arranque + d[f['id']] + 0.45)
             voz.append({'id': f['id'], 'ini': round(arranque, 3), 'dur': round(d[f['id']], 3), 'texto': f['texto']})
         fin = cur
     else:
         f = frases[0]
         if e['n'] == 1:
-            arranque = ini + 1.2; fin = max(arranque + d['1'] + 0.7, ini + MAPA_SEG + 5.2)
+            arranque = ini + 0.45; fin = max(arranque + d['1'] + 0.5, ini + MAPA_SEG + 3.0)
         elif e['n'] == 7:
-            arranque = ini + 0.6; fin = arranque + d['7'] + 5.0
+            arranque = ini + 0.5; fin = arranque + d['7'] + 2.1
         else:
-            arranque = ini + 0.3; fin = arranque + d[f['id']] + 0.6
+            arranque = ini + 0.15; fin = arranque + d[f['id']] + 0.2
         voz.append({'id': f['id'], 'ini': round(arranque, 3), 'dur': round(d[f['id']], 3), 'texto': f['texto']})
     escenas.append({'n': e['n'], 'titulo': e['titulo'], 'inicio': round(ini, 3), 'fin': round(fin, 3)})
     t = fin

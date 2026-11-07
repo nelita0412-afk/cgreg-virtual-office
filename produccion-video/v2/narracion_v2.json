@@ -49,51 +49,51 @@
      "id": "5a",
      "texto": "CGREG Virtual Office será el centro digital de operaciones de esta intervención.",
      "clips": [
-      "01-ingreso[10:137]x1.3"
+      "01-ingreso[40:137]x2",
+      "02-oficina[0:35]"
      ]
     },
     {
      "id": "5b",
      "texto": "Permitirá coordinar a los profesionales,",
      "clips": [
-      "02-oficina[0:60]",
-      "03-consultorios[0:112]",
-      "04-telemedicina[0:76]"
+      "03-consultorios[20:96]",
+      "04-telemedicina[20:68]"
      ]
     },
     {
      "id": "5c",
      "texto": "administrar las agendas,",
      "clips": [
-      "05-agenda[0:76]x1.3"
+      "05-agenda[18:76]x1.5"
      ]
     },
     {
      "id": "5d",
      "texto": "registrar las atenciones,",
      "clips": [
-      "06-atenciones[0:122]x1.3"
+      "06-atenciones[25:122]x1.8"
      ]
     },
     {
      "id": "5e",
      "texto": "gestionar historias clínicas y consentimientos informados,",
      "clips": [
-      "07-historias[0:176]x1.3"
+      "07-historias[25:176]x1.8"
      ]
     },
     {
      "id": "5f",
      "texto": "monitorear el avance",
      "clips": [
-      "08-comando[0:96]x1.3"
+      "08-comando[0:90]x1.8"
      ]
     },
     {
      "id": "5g",
      "texto": "y recibir solicitudes que requieran articulación institucional.",
      "clips": [
-      "09-solicitudes[0:83]x1.3"
+      "09-solicitudes[20:83]x1.5"
      ]
     }
    ]
@@ -106,7 +106,7 @@
      "id": "6a",
      "texto": "Cuando los profesionales requieran apoyo institucional, podrán solicitarlo directamente desde la plataforma.",
      "clips": [
-      "09-solicitudes[83:261]"
+      "09-solicitudes[83:218]"
      ]
     },
     {
@@ -126,5 +126,6 @@
    ]
   }
  ],
- "nota_clips": "Formato de clip: nombre[fotograma_inicial:fotograma_final]xVELOCIDAD (la interfaz se reproduce a 1,3×; la oficina 3D a velocidad real)."
+ "nota_clips": "Formato de clip: nombre[fotograma_inicial:fotograma_final]xVELOCIDAD (la interfaz se reproduce a 1,3×; la oficina 3D a velocidad real).",
+ "voz_usada": "Azure AI Speech es-EC-AndreaNeural (velocidad +14 %). CGREG se pronuncia «Cegreg»."
 }

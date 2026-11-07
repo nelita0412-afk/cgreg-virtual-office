@@ -25,11 +25,11 @@ const chipLogo = (x, y, w) => `<div class="chiplogo" style="left:${x}px;top:${y}
 const credito = (txt, t, hasta) => `<div class="credito" style="${anim(a('aparecer', 0.8, t, 'ease'), ...(hasta ? [a('desaparecer', 0.8, hasta, 'ease')] : []))}">${txt}</div>`;
 
 /* ---------------- Escena 1: mapa Ecuador → Galápagos → Santa Cruz, y fotografías de Puerto Ayora ---------------- */
-const t1 = E[1].inicio, M = lt.mapa_seg;
+const t1 = E[1].inicio, M = lt.mapa_seg, VM = 10.8 / lt.mapa_seg; // velocidad de la animación cartográfica
 const s1 = escena(1, `
   <canvas id="mapa" width="1920" height="1080" style="position:absolute;inset:0;${anim(a('desaparecer', 1.2, t1 + M - 0.6, 'ease'))}"></canvas>
-  <div class="kicker sombra" style="left:96px;top:86px;${anim(a('subir', 0.9, t1 + 0.4), a('desaparecer', 0.8, t1 + 8.6, 'ease'))}">CONTEXTO TERRITORIAL</div>
-  <div class="rotulo-geo" style="top:80px;bottom:auto;${anim(a('desdeIzq', 0.9, t1 + 9.0), a('desaparecer', 0.8, t1 + M - 0.5, 'ease'))}">${icon('LuMapPin', ORO, 34)}<span>PUERTO AYORA · ISLA SANTA CRUZ · GALÁPAGOS · ECUADOR</span></div>
+  <div class="kicker sombra" style="left:96px;top:86px;${anim(a('subir', 0.9, t1 + 0.4), a('desaparecer', 0.8, t1 + 8.6 / VM, 'ease'))}">CONTEXTO TERRITORIAL</div>
+  <div class="rotulo-geo" style="top:80px;bottom:auto;${anim(a('desdeIzq', 0.9, t1 + 9.0 / VM), a('desaparecer', 0.8, t1 + M - 0.5, 'ease'))}">${icon('LuMapPin', ORO, 34)}<span>PUERTO AYORA · ISLA SANTA CRUZ · GALÁPAGOS · ECUADOR</span></div>
   <div class="credito" style="${anim(a('aparecer', 0.8, t1 + 0.4, 'ease'), a('desaparecer', 0.8, t1 + M - 0.6, 'ease'))}">Cartografía: © colaboradores de OpenStreetMap (ODbL) · Natural Earth</div>
   <div class="foto" style="background-image:url('${F}puerto-ayora-muelle.jpg');${anim(a('aparecer', 1.2, t1 + M - 0.6, 'ease'), a('kb1', 7.5, t1 + M - 0.6, 'linear'))}"></div>
   <div class="velo-izq" style="${anim(a('aparecer', 1.2, t1 + M - 0.4, 'ease'))}"></div>
@@ -40,55 +40,55 @@ const s1 = escena(1, `
   ${credito('Foto: Puerto Ayora · David Broad, CC BY 3.0 · Wikimedia Commons', t1 + M + 0.4)}
 `);
 /* ---------------- Escena 2: dos rutas de atención ---------------- */
-const t2 = E[2].inicio;
+const t2 = E[2].inicio, K2 = V['2'].dur / 12.4; // sincronía con la voz
 const s2 = escena(2, `
   <div class="malla"></div>
   ${chipLogo(80, 60, 420)}
-  <div class="kicker" style="left:96px;top:190px;${anim(a('subir', 0.8, t2 + 0.3))}">DOS VÍAS DE ACCESO</div>
-  <h2 class="titulo2" style="left:90px;top:232px;${anim(a('subir', 0.9, t2 + 0.5))}">Rutas de atención</h2>
+  <div class="kicker" style="left:96px;top:190px;${anim(a('subir', 0.8, t2 + 0.3 * K2))}">DOS VÍAS DE ACCESO</div>
+  <h2 class="titulo2" style="left:90px;top:232px;${anim(a('subir', 0.9, t2 + 0.5 * K2))}">Rutas de atención</h2>
   <svg class="rutas" viewBox="0 0 1920 1080">
-    <path d="M 700 455 C 980 455, 1080 600, 1330 610" stroke="${ORO}" style="${anim(a('trazo', 2.2, t2 + 1.4, 'ease-in-out'))}"/>
-    <path d="M 700 755 C 980 755, 1080 640, 1330 630" stroke="${TURQ}" style="${anim(a('trazo', 2.2, t2 + 5.6, 'ease-in-out'))}"/>
+    <path d="M 700 455 C 980 455, 1080 600, 1330 610" stroke="${ORO}" style="${anim(a('trazo', 2.2, t2 + 1.4 * K2, 'ease-in-out'))}"/>
+    <path d="M 700 755 C 980 755, 1080 640, 1330 630" stroke="${TURQ}" style="${anim(a('trazo', 2.2, t2 + 5.6 * K2, 'ease-in-out'))}"/>
   </svg>
-  <div class="ruta r1" style="left:96px;top:385px;${anim(a('desdeIzq', 0.9, t2 + 0.9))}">
+  <div class="ruta r1" style="left:96px;top:385px;${anim(a('desdeIzq', 0.9, t2 + 0.9 * K2))}">
     <div class="ri">${icon('LuShieldAlert', ORO, 46)}</div>
     <div><div class="rt" style="color:${ORO}">RUTA 1 · ATENCIÓN PRIORITARIA</div><div class="rd">Servidores con riesgo alto <b>validado profesionalmente</b></div></div>
   </div>
-  <div class="ruta r2" style="left:96px;top:685px;${anim(a('desdeIzq', 0.9, t2 + 5.1))}">
+  <div class="ruta r2" style="left:96px;top:685px;${anim(a('desdeIzq', 0.9, t2 + 5.1 * K2))}">
     <div class="ri">${icon('LuDoorOpen', TURQ, 46)}</div>
     <div><div class="rt" style="color:${TURQ}">RUTA 2 · ATENCIÓN ABIERTA</div><div class="rd">Cualquier servidor del CGREG en Santa Cruz que <b>solicite acompañamiento</b></div></div>
   </div>
-  <div class="nodo" style="left:1330px;top:470px;${anim(a('escalar', 0.9, t2 + 3.4))}">
+  <div class="nodo" style="left:1330px;top:470px;${anim(a('escalar', 0.9, t2 + 3.4 * K2))}">
     <div class="nodo-n">8</div><div class="nodo-t">profesionales<br>de la brigada</div>
   </div>
-  <div class="nota" style="left:1300px;top:820px;width:520px;${anim(a('subir', 0.8, t2 + 8.2))}">La ausencia de una valoración previa no impide el acceso a la atención.</div>
+  <div class="nota" style="left:1300px;top:820px;width:520px;${anim(a('subir', 0.8, t2 + 8.2 * K2))}">La ausencia de una valoración previa no impide el acceso a la atención.</div>
 `);
 
 /* ---------------- Escena 3: equipo interdisciplinario ---------------- */
-const t3 = E[3].inicio;
+const t3 = E[3].inicio, K3 = V['3'].dur / 13.8; // sincronía con la voz
 const psis = ['Gabriel Ordóñez', 'Ma. de los Ángeles Alcívar', 'Hugo Xavier Cuenca', 'Sofía Guerra', 'Betsabé Córdova', 'Zally Pamela'];
 const s3 = escena(3, `
   <div class="foto tenue" style="background-image:url('${F}telesalud-pasillo.jpg');${anim(a('kb3', 16, t3, 'linear'))}"></div>
   <div class="velo-total"></div>
   ${chipLogo(80, 60, 420)}
-  <div class="kicker" style="left:96px;top:180px;${anim(a('subir', 0.8, t3 + 0.2))}">EL EQUIPO</div>
-  <h2 class="titulo2" style="left:90px;top:222px;${anim(a('subir', 0.9, t3 + 0.4))}">Brigada interdisciplinaria</h2>
-  <div class="grupo" style="left:96px;top:370px;${anim(a('subir', 0.8, t3 + 0.9))}">${icon('LuBrain', TURQ, 40)}<span><b>6</b> Psicología clínica</span></div>
-  ${psis.map((n, i) => `<div class="persona" style="left:${96 + (i % 3) * 385}px;top:${450 + Math.floor(i / 3) * 96}px;${anim(a('subir', 0.7, t3 + 1.3 + i * 0.25))}">${icon('LuUserRound', '#9FD8E2', 30)}<span>${n}</span></div>`).join('')}
-  <div class="tarjeta" style="left:1290px;top:370px;${anim(a('desdeDer', 0.9, t3 + 3.6))}">
+  <div class="kicker" style="left:96px;top:180px;${anim(a('subir', 0.8, t3 + 0.2 * K3))}">EL EQUIPO</div>
+  <h2 class="titulo2" style="left:90px;top:222px;${anim(a('subir', 0.9, t3 + 0.4 * K3))}">Brigada interdisciplinaria</h2>
+  <div class="grupo" style="left:96px;top:370px;${anim(a('subir', 0.8, t3 + 0.9 * K3))}">${icon('LuBrain', TURQ, 40)}<span><b>6</b> Psicología clínica</span></div>
+  ${psis.map((n, i) => `<div class="persona" style="left:${96 + (i % 3) * 385}px;top:${450 + Math.floor(i / 3) * 96}px;${anim(a('subir', 0.7, t3 + 1.3 * K3 + i * 0.25))}">${icon('LuUserRound', '#9FD8E2', 30)}<span>${n}</span></div>`).join('')}
+  <div class="tarjeta" style="left:1290px;top:370px;${anim(a('desdeDer', 0.9, t3 + 3.6 * K3))}">
     ${icon('LuStethoscope', ORO, 40)}<div><div class="tt">Medicina / Telemedicina</div><div class="tn">Dr. Demetrio Magallanes</div><div class="td">Médico epidemiólogo · ayuda humanitaria y gestión de riesgos</div></div>
   </div>
-  <div class="tarjeta" style="left:1290px;top:560px;${anim(a('desdeDer', 0.9, t3 + 7.2))}">
+  <div class="tarjeta" style="left:1290px;top:560px;${anim(a('desdeDer', 0.9, t3 + 7.2 * K3))}">
     ${icon('LuClipboardList', ORO, 40)}<div><div class="tt">Psiquiatría por derivación</div><div class="tn">Dr. Diego Estrella</div><div class="td">Valoraciones especializadas de casos remitidos</div></div>
   </div>
-  <div class="tarjeta discontinua" style="left:96px;top:690px;width:1140px;${anim(a('subir', 0.9, t3 + 10.6))}">
+  <div class="tarjeta discontinua" style="left:96px;top:690px;width:1140px;${anim(a('subir', 0.9, t3 + 10.6 * K3))}">
     ${icon('LuMapPin', TURQ, 36)}<div><div class="tt" style="color:${TURQ}">Articulación territorial adicional</div><div class="td">Andrea Mayorga · psicóloga DECE en territorio, con niñas, niños, adolescentes, familias y profesionales educativos</div></div>
   </div>
-  ${credito('Imagen referencial · USDA, dominio público', t3 + 0.5)}
+  ${credito('Imagen referencial · USDA, dominio público', t3 + 0.5 * K3)}
 `);
 
 /* ---------------- Escena 4: alcance de los servicios ---------------- */
-const t4 = E[4].inicio;
+const t4 = E[4].inicio, K4 = V['4'].dur / 10.4; // sincronía con la voz
 const serv = [
   ['LuVideo', 'Atención psicológica individual', 'clin'], ['LuStethoscope', 'Telemedicina', 'clin'], ['LuClipboardList', 'Valoración psiquiátrica especializada', 'clin'],
   ['LuRefreshCw', 'Seguimiento psicosocial', 'acomp'], ['LuUsersRound', 'Debriefing y acompañamiento grupal', 'acomp'], ['LuGraduationCap', 'Capacitación DECE', 'acomp'],
@@ -97,13 +97,13 @@ const s4 = escena(4, `
   <div class="foto mitad" style="background-image:url('${F}teleconsulta.jpg');${anim(a('kb4', 12, t4, 'linear'))}"></div>
   <div class="velo-izq ancho"></div>
   ${chipLogo(80, 60, 420)}
-  <div class="kicker" style="left:96px;top:180px;${anim(a('subir', 0.8, t4 + 0.2))}">ALCANCE</div>
-  <h2 class="titulo2" style="left:90px;top:222px;${anim(a('subir', 0.9, t4 + 0.4))}">Servicios telemáticos</h2>
-  <div class="grupo-et" style="left:96px;top:365px;${anim(a('aparecer', 0.6, t4 + 0.8, 'ease'))}">PRESTACIONES CLÍNICAS</div>
-  <div class="grupo-et" style="left:96px;top:640px;color:${TURQ};${anim(a('aparecer', 0.6, t4 + 5.2, 'ease'))}">ACOMPAÑAMIENTO Y FORTALECIMIENTO</div>
-  ${serv.map(([ic, t, g], i) => `<div class="serv" style="left:96px;top:${(g === 'clin' ? 410 : 685) + (i % 3) * 72}px;${anim(a('desdeIzq', 0.7, t4 + [1.0, 2.6, 3.6, 5.6, 7.0, 8.6][i]))}"><span class="sic">${icon(ic, g === 'clin' ? '#fff' : NAVY, 30)}</span><span>${t}</span></div>`).join('')}
-  <div class="nota fondo" style="left:1120px;top:178px;width:720px;${anim(a('subir', 0.8, t4 + 2.0))}">La teleatención es una modalidad de atención y acompañamiento; no sustituye la atención presencial ni de emergencia.</div>
-  ${credito('Imagen referencial · USDA, dominio público', t4 + 0.5)}
+  <div class="kicker" style="left:96px;top:180px;${anim(a('subir', 0.8, t4 + 0.2 * K4))}">ALCANCE</div>
+  <h2 class="titulo2" style="left:90px;top:222px;${anim(a('subir', 0.9, t4 + 0.4 * K4))}">Servicios telemáticos</h2>
+  <div class="grupo-et" style="left:96px;top:365px;${anim(a('aparecer', 0.6, t4 + 0.8 * K4, 'ease'))}">PRESTACIONES CLÍNICAS</div>
+  <div class="grupo-et" style="left:96px;top:640px;color:${TURQ};${anim(a('aparecer', 0.6, t4 + 5.2 * K4, 'ease'))}">ACOMPAÑAMIENTO Y FORTALECIMIENTO</div>
+  ${serv.map(([ic, t, g], i) => `<div class="serv" style="left:96px;top:${(g === 'clin' ? 410 : 685) + (i % 3) * 72}px;${anim(a('desdeIzq', 0.7, t4 + [1.0, 2.6, 3.6, 5.6, 7.0, 8.6][i] * K4))}"><span class="sic">${icon(ic, g === 'clin' ? '#fff' : NAVY, 30)}</span><span>${t}</span></div>`).join('')}
+  <div class="nota fondo" style="left:1120px;top:178px;width:720px;${anim(a('subir', 0.8, t4 + 2.0 * K4))}">La teleatención es una modalidad de atención y acompañamiento; no sustituye la atención presencial ni de emergencia.</div>
+  ${credito('Imagen referencial · USDA, dominio público', t4 + 0.5 * K4)}
 `);
 
 
@@ -113,7 +113,7 @@ const PASOS = { '01-ingreso': '1 · Ingreso', '02-oficina': '2 · Oficina virtua
   '09-solicitudes': '9 · Solicitudes a Coordinación' };
 const pasoEnTiempo = [];
 // la etiqueta del paso cambia cuando se abre el módulo (≈0,9 s después del inicio del tramo, tiempo del clic)
-for (const s of lt.edl) if (!pasoEnTiempo.length || pasoEnTiempo[pasoEnTiempo.length - 1].clip !== s.clip) pasoEnTiempo.push({ clip: s.clip, ini: pasoEnTiempo.length ? s.ini + 0.9 : s.ini });
+for (const s of lt.edl) if (!pasoEnTiempo.length || pasoEnTiempo[pasoEnTiempo.length - 1].clip !== s.clip) pasoEnTiempo.push({ clip: s.clip, ini: pasoEnTiempo.length ? s.ini + 0.35 : s.ini });
 const pasos6 = [{ clip: '10', ini: E[6].inicio, txt: '10 · Seguimiento institucional' }];
 const t5 = E[5].inicio, t6 = E[6].inicio;
 const bandaDemo = (n) => `<div class="banda-demo"><span class="demo2">SIMULACIÓN DE DEMOSTRACIÓN · DATOS FICTICIOS</span>${(n === 5 ? pasoEnTiempo.map((p, i, arr) => ({ t: p.ini, h: arr[i + 1] ? arr[i + 1].ini : E[6].fin, txt: PASOS[p.clip] })) : pasos6.map((p) => ({ t: p.ini, h: E[6].fin, txt: p.txt })))
@@ -121,7 +121,7 @@ const bandaDemo = (n) => `<div class="banda-demo"><span class="demo2">SIMULACIÓ
 const s5 = escena(5, `
   <img class="demo" data-escena="5" src="">
   ${bandaDemo(5)}
-  <div class="tercio" style="${anim(a('desdeIzq', 0.8, t5 + 0.2), a('desaparecer', 0.6, t5 + 4.6, 'ease'))}"><div class="m5t">CGREG VIRTUAL OFFICE</div><div class="m5s">Centro Digital de Operaciones de Atención Interdisciplinaria</div></div>
+  <div class="tercio" style="${anim(a('desdeIzq', 0.8, t5 + 0.2), a('desaparecer', 0.6, t5 + 3.0, 'ease'))}"><div class="m5t">CGREG VIRTUAL OFFICE</div><div class="m5s">Centro Digital de Operaciones de Atención Interdisciplinaria</div></div>
 `, { fondo: '#04102B' });
 const flujo = [['LuUserRound', 'Profesional', 'solicita apoyo desde la plataforma'], ['LuLandmark', 'Coordinación General', 'recibe, evalúa y articula'], ['LuNetwork', 'Instituciones', 'gestión interinstitucional'], ['LuCircleCheck', 'Respuesta y seguimiento', 'hasta obtener respuesta']];
 const tf = V['6b'].ini - 0.2;
@@ -140,9 +140,9 @@ const t7 = E[7].inicio, f7 = E[7].fin;
 const s7 = `<section class="esc" style="background:#000;${anim(a('aparecer', 0.9, t7 - 0.35, 'ease'))}">
   <div class="foto" style="background-image:url('${F}bahia-tortuga.jpg');${anim(a('kb7', f7 - t7 + 0.4, t7 - 0.35, 'linear'))}"></div>
   <div class="velo-cierre2" style="${anim(a('aparecer', 2.0, t7 + 0.4, 'ease'))}"></div>
-  <div class="lema2" style="${anim(a('subir', 1.4, V['7'].ini + 2.6), a('desaparecer', 1.2, f7 - 4.0, 'ease'))}">Más cerca de nuestros servidores,<br>incluso a la distancia.</div>
+  <div class="lema2" style="${anim(a('subir', 1.2, V['7'].ini + 2.2), a('desaparecer', 1.0, f7 - 3.1, 'ease'))}">Más cerca de nuestros servidores,<br>incluso a la distancia.</div>
   ${credito('Foto: Bahía Tortuga, isla Santa Cruz · Diego Delso, CC BY-SA 4.0 · Wikimedia Commons', t7 + 0.4, t7 + 4.0)}
-  <div class="negro" style="${anim(a('aparecer', 1.4, f7 - 1.4, 'ease'))}"></div>
+  <div class="negro" style="${anim(a('aparecer', 1.2, f7 - 1.2, 'ease'))}"></div>
 </section>`;
 const css = `
 @font-face{font-family:Inter}
@@ -276,7 +276,7 @@ window.irA = async (t) => {
   for (const x of document.getAnimations()) { x.pause(); x.currentTime = t * 1000; }
   const c = CUES.find((c) => t >= c.ini && t <= c.fin);
   if (c) { sub.textContent = c.texto; sub.style.display = 'block'; } else sub.style.display = 'none';
-  if (t >= T1 && t <= T1 + MAPA + 0.8) dibujarMapa(cv, t - T1);
+  if (t >= T1 && t <= T1 + MAPA + 0.8) dibujarMapa(cv, (t - T1) * 10.8 / MAPA);
   if (t >= T5 - 0.5 && t <= F6 + 0.5) {
     const src = fotogramaDemo(Math.max(T5, t));
     await Promise.all(demos.map((im) => { if (im.getAttribute('src') !== src) { im.src = src; return im.decode().catch(() => {}); } }));

@@ -39,7 +39,7 @@ for e in lt['escenas']:
 
 # Guion de narración
 g = ['# Guion de narración — Video institucional CGREG (versión 2)', '',
-     'Voz femenina ecuatoriana: Azure AI Speech, es-EC-AndreaNeural. La sigla CGREG se pronuncia «CEGREG»; en textos y subtítulos se escribe CGREG. Música instrumental original discreta. Duración total: ' + mmss(lt['duracion']) + '.', '']
+     'Voz femenina ecuatoriana: Azure AI Speech, es-EC-AndreaNeural (velocidad +14 %). La sigla CGREG se pronuncia «CEGREG»; en textos y subtítulos se escribe CGREG. Música instrumental original discreta. Duración total: ' + mmss(lt['duracion']) + '.', '']
 for e in lt['escenas']:
     g += [f"## Escena {e['n']}. {e['titulo']} ({mmss(e['inicio'])} – {mmss(e['fin'])})", '']
     for v in [v for v in lt['voz'] if v['id'].startswith(str(e['n']))]: g += [f"**{mmss(v['ini'])}** ({v['dur']:.1f} s) — {v['texto']}", '']
@@ -65,7 +65,7 @@ h2{{margin:2px 0 6px;font-size:13pt}} p{{margin:0 0 5px;line-height:1.35}} .nar{
 <header><div><h1>Storyboard v2 — Video institucional (16:9, 1920 × 1080, {mmss(lt['duracion'])})</h1><div class="sub">Plan de Acompañamiento Psicosocial y de Salud · CGREG Virtual Office</div></div><img src="recursos/logos-gobierno-cgreg.png"></header>
 {filas}
 <div class="pie">Consistencia visual: azul marino, azul institucional, blanco, turquesa y acentos dorados; tipografía Inter. Subtítulos en español integrados en el video y en archivo SRT.
-Cartografía: © colaboradores de OpenStreetMap (ODbL), Natural Earth. Fotografías: David Broad (CC BY 3.0), Diego Delso (CC BY-SA 4.0), Wikimedia Commons; imágenes referenciales de telesalud: USDA (dominio público). Voz: Azure es-EC-AndreaNeural.
+Cartografía: © colaboradores de OpenStreetMap (ODbL), Natural Earth. Fotografías: David Broad (CC BY 3.0), Diego Delso (CC BY-SA 4.0), Wikimedia Commons; imágenes referenciales de telesalud: USDA (dominio público). Voz: Azure AI Speech es-EC-AndreaNeural (español de Ecuador).
 La navegación de CGREG Virtual Office es una grabación real de la plataforma en su base de demostración con datos ficticios; no son resultados institucionales. El cierre se entrega sin logotipos.</div>
 </body></html>"""
 open('storyboard.html', 'w', encoding='utf-8').write(doc)

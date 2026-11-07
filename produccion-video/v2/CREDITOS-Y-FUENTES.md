@@ -22,7 +22,7 @@ Las fotografías de telesalud son **imágenes referenciales**: no muestran a la 
 Grabación de navegación real de la plataforma CGREG Virtual Office en su **base de demostración con datos ficticios** (servidores «DEMO»). Los módulos mostrados están implementados; los datos no son institucionales. Rótulo permanente: «SIMULACIÓN DE DEMOSTRACIÓN · DATOS FICTICIOS».
 
 ## Voz y música
-- Narración: Microsoft Azure AI Speech, voz neuronal **es-EC-AndreaNeural** (español de Ecuador). Pronunciación institucional de la sigla CGREG: «CEGREG».
+- Narración: Microsoft Azure AI Speech, voz neuronal femenina **es-EC-AndreaNeural** (español de Ecuador), recurso propio de nivel gratuito F0. Pronunciación institucional de la sigla CGREG: «CEGREG».
 - Música: composición instrumental original generada por código para este video (sin obras de terceros).
 
 ## Identidad institucional
