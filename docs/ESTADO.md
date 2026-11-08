@@ -1,6 +1,6 @@
 # Estado de la implementación
 
-Verificación: `npm test` ejecuta **67 pruebas**: las 37 originales sin cambios, 26 de la ampliación y 4 de etiquetas, contra PostgreSQL real. `npm run e2e` hace **14 comprobaciones con navegador** (10 originales y 4 nuevas) más **14 comprobaciones de movimiento** (`npm run e2e:movimiento`).
+Verificación: `npm test` ejecuta **72 pruebas** (37 originales sin cambios, 26 de la ampliación, 4 de etiquetas y 5 de la app móvil), contra PostgreSQL real. `npm run e2e` hace **14 comprobaciones con navegador**, **14 de movimiento** (`npm run e2e:movimiento`) y **23 de la app móvil en iPhone emulado** (`npm run e2e:movil`).
 
 > Las 37 pruebas originales registran el consentimiento con la «constancia profesional» anterior a la ampliación; su instancia de prueba la habilita (`CONSENTIMIENTO_CONSTANCIA_PROFESIONAL=true`). En la configuración por defecto, la constancia **no** habilita la atención; las pruebas nuevas y el E2E usan esa configuración y el consentimiento documentado.
 
@@ -76,6 +76,22 @@ Sin cambios en el backend (Fastify/PostgreSQL), las migraciones ni los módulos 
 - Las animaciones son procedurales (sin captura de movimiento); los rostros son estilizados, sin expresiones.
 - Con la cámara en movimiento, las etiquetas se reacomodan cada 80 ms; durante una transición pueden cambiar de posición brevemente.
 - Las texturas (ventanal, pisos, pantallas) se generan por código; no hay fotografías reales.
+
+## App móvil 2.0 (noviembre 2026)
+
+### Implementado y verificado
+- PWA instalable en Android e iPhone, service worker que solo guarda la interfaz, pantalla sin conexión, aviso de nueva versión.
+- «Mi día» por perfil con datos reales; barra inferior y panel «Más» por rol; tarjetas táctiles en las listas principales.
+- Portal del servidor institucional sin cuenta (`/servidor`).
+- Notificaciones push (Web Push) opcionales, sin datos clínicos en la pantalla bloqueada.
+- `Cache-Control: no-store` en toda la API; reintentos ante red inestable.
+
+### Pendiente o requiere decisión
+- **Push en producción**: generar las claves VAPID y servir la app por HTTPS. En iPhone, el push solo funciona con la app instalada (iOS 16.4 o posterior).
+- **Agenda en el teléfono**: hoy muestra la semana apilada; falta una vista de día con gestos (deslizar entre días).
+- **Formularios clínicos largos** (registro de atención, historia clínica): funcionan en el teléfono, pero conviene una versión por pasos.
+- **Consulta del estado de una solicitud abierta** por el servidor (sin cuenta): requiere definir cómo identificarlo sin exponer datos.
+- **Publicación en tiendas** (Google Play / App Store): no es necesaria para una PWA; se puede evaluar después.
 
 ## Funcionalidad previa (se conserva)
 

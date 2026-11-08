@@ -36,7 +36,7 @@ function Cuenta() {
   const qc = useQueryClient();
   const ses = useQuery({ queryKey: ['sesiones'], queryFn: () => api.get('/api/auth/sesiones') });
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="grid gap-3 lg:grid-cols-2 [&>*]:min-w-0">
       <Card title="Datos de la cuenta">
         <div className="space-y-1 text-sm">
           <div><span className="muted">Nombre:</span> {me?.nombre}</div>
@@ -51,8 +51,8 @@ function Cuenta() {
           <ul className="space-y-2 text-sm">
             {(ses.data ?? []).map((s: any) => (
               <li key={s.ref} className="rounded-lg border p-2" style={{ borderColor: 'var(--line)' }}>
-                <div className="flex items-center gap-2">{s.actual && <Badge tono="good">Esta sesión</Badge>}<span className="truncate text-xs muted">{s.user_agent}</span></div>
-                <div className="text-xs faint">Inicio {fFechaHora(s.creada_at)} · última actividad {fFechaHora(s.ultima_actividad)} · IP {s.ip}</div>
+                <div className="flex min-w-0 items-center gap-2">{s.actual && <Badge tono="good" className="shrink-0">Esta sesión</Badge>}<span className="min-w-0 truncate text-xs muted">{s.user_agent}</span></div>
+                <div className="break-words text-xs faint">Inicio {fFechaHora(s.creada_at)} · última actividad {fFechaHora(s.ultima_actividad)} · IP {s.ip}</div>
               </li>
             ))}
           </ul>
