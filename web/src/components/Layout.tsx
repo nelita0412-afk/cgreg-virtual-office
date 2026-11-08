@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2, Gauge, Users, Sun, CalendarDays, IdCard, HeartPulse, Share2, Inbox, MessagesSquare, GraduationCap, BarChart3, Settings, ShieldCheck, MapPin, Clock, Bell, LogOut, Wifi, WifiOff, Map, Siren, DoorOpen, FolderHeart,
@@ -137,7 +137,7 @@ export function Layout() {
           to={i.to}
           end={i.to === '/'}
           className={({ isActive }) =>
-            `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] transition ${isActive ? 'bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-glow' : 'text-slate-200 hover:bg-white/5'}`
+            `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] transition ${isActive ? 'bg-salvia-100 font-semibold text-salvia-900 shadow-[inset_3px_0_0_#78958A]' : 'text-slate-200 hover:bg-white/5'}`
           }
         >
           <i.icon size={19} aria-hidden />
@@ -155,7 +155,7 @@ export function Layout() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="z-30 flex items-center gap-3 border-b px-3 py-2 sm:px-4" style={{ borderColor: 'var(--line)', background: 'linear-gradient(90deg,#071a3f,#0a2559 55%,#071a3f)', paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+      <header className="z-30 flex items-center gap-3 border-b px-3 py-2 sm:px-4" style={{ borderColor: 'var(--line)', background: 'rgba(250,249,244,.88)', backdropFilter: 'saturate(1.4) blur(18px)', paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-3">
           <img src="/icons/icono-192.png" alt="" className="h-10 w-10 rounded-xl shadow-glow" />
           <div className="leading-tight sm:hidden">
@@ -182,14 +182,24 @@ export function Layout() {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r scroll-thin lg:block" style={{ borderColor: 'var(--line)', background: 'rgba(4,14,36,.6)' }}>{sidebar}</aside>
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r scroll-thin lg:block" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.45)' }}>{sidebar}</aside>
         <main className="min-w-0 flex-1 overflow-y-auto scroll-thin pb-[calc(68px+env(safe-area-inset-bottom))] lg:pb-0" id="contenido">
           <AvisoSinConexion />
-          <Outlet />
+          <EntradaPantalla />
         </main>
       </div>
       <BarraInferior items={items} onSalir={salir} />
       <AvisoActualizacion />
+    </div>
+  );
+}
+
+/** Cada pantalla entra con un leve desplazamiento (transform + opacity, 220 ms); con «reducir movimiento» solo se desvanece. */
+function EntradaPantalla() {
+  const { pathname } = useLocation();
+  return (
+    <div key={pathname} className="entrada-pantalla">
+      <Outlet />
     </div>
   );
 }

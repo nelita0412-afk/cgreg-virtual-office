@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, FileSignature, HeartHandshake, LockKeyhole, Phone, LogIn } from 'lucide-react';
+import { ChevronRight, FileSignature, HeartHandshake, LockKeyhole, Phone, LogIn, Search } from 'lucide-react';
 import { Instalar } from '../components/AppMovil';
 
 /**
@@ -43,8 +43,8 @@ export default function PortalServidor() {
 
         <a
           href="tel:911"
-          className="flex min-h-14 items-center gap-3 rounded-2xl border px-4 text-[15px] font-semibold text-red-100 transition-transform duration-150 active:scale-[0.98]"
-          style={{ borderColor: 'rgba(248,113,113,.45)', background: 'rgba(127,29,29,.35)' }}
+          className="flex min-h-14 items-center gap-3 rounded-2xl border px-4 text-[15px] font-semibold text-red-800 transition-transform duration-150 active:scale-[0.98]"
+          style={{ borderColor: 'rgba(180,66,58,.3)', background: 'rgba(180,66,58,.08)' }}
         >
           <Phone size={20} aria-hidden />
           <span className="flex-1">¿Está en peligro ahora? Llame al ECU 911</span>
@@ -57,7 +57,7 @@ export default function PortalServidor() {
             <Link
               to="/solicitar-atencion"
               className="flex min-h-[72px] items-center gap-4 rounded-2xl px-5 text-left transition-transform duration-150 active:scale-[0.98]"
-              style={{ background: 'linear-gradient(160deg,#22d3ee,#0369a1)', color: '#04102b' }}
+              style={{ background: 'linear-gradient(150deg,#78958A,#4D665C)', color: '#F5F3EC' }}
             >
               <HeartHandshake size={26} aria-hidden />
               <span className="flex-1">
@@ -71,6 +71,19 @@ export default function PortalServidor() {
               El formulario en línea no está disponible en este momento. Comuníquese con la Coordinación General del CGREG.
             </p>
           )}
+
+          <Link
+            to="/servidor/estado"
+            className="flex min-h-14 items-center gap-4 rounded-2xl border px-5 transition-transform duration-150 active:scale-[0.98]"
+            style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}
+          >
+            <Search size={22} className="shrink-0 text-cyan-300" aria-hidden />
+            <span className="flex-1 py-3 text-sm">
+              <span className="block text-[15px] font-semibold text-white">¿Ya envió una solicitud?</span>
+              <span className="muted">Consulte en qué etapa está con su código y su clave.</span>
+            </span>
+            <ChevronRight size={18} className="faint" aria-hidden />
+          </Link>
 
           <div className="flex items-start gap-4 rounded-2xl border px-5 py-4" style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}>
             <FileSignature size={24} className="mt-0.5 shrink-0 text-cyan-300" aria-hidden />
@@ -91,7 +104,7 @@ export default function PortalServidor() {
               ['Consentimiento', 'Antes de la primera atención recibe el enlace para leer y aceptar el consentimiento.'],
             ].map(([t, d], i) => (
               <li key={t} className="flex gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-semibold tabular-nums text-cyan-200" style={{ borderColor: 'rgba(79,224,240,.35)' }}>{i + 1}</span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-semibold tabular-nums text-cyan-200" style={{ borderColor: 'rgba(120,149,138,.45)' }}>{i + 1}</span>
                 <span className="text-sm leading-relaxed">
                   <span className="font-semibold text-white">{t}. </span>
                   <span className="muted">{d}</span>

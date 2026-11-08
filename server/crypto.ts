@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
  * Cifrado de campos clínicos con AES-256-GCM.
@@ -51,4 +51,35 @@ export function sha256(s: string | Buffer) {
 
 export function newToken(bytes = 32) {
   return randomBytes(bytes).toString('base64url');
+}
+
+/* ------------------- Clave de consulta del estado de una solicitud (servidores sin cuenta) ------------------- */
+// Alfabeto sin caracteres que se confunden al dictarlos o escribirlos en el teléfono (0/O, 1/I/L, U/V).
+const ALFABETO_CLAVE = '23456789ABCDEFGHJKMNPQRSTWXYZ';
+
+/** Clave legible de 10 caracteres (≈48 bits) con formato XXXXX-XXXXX. */
+export function nuevaClaveConsulta() {
+  let s = '';
+  // Muestreo por rechazo: sin sesgo de módulo.
+  while (s.length < 10) {
+    for (const b of randomBytes(16)) {
+      if (b < 256 - (256 % ALFABETO_CLAVE.length) && s.length < 10) s += ALFABETO_CLAVE[b % ALFABETO_CLAVE.length];
+    }
+  }
+  return `${s.slice(0, 5)}-${s.slice(5)}`;
+}
+
+/** Normaliza lo que escribe la persona: mayúsculas, sin espacios ni guiones. */
+export const normalizarClaveConsulta = (c: string) => c.toUpperCase().replace(/[^0-9A-Z]/g, '');
+
+/** HMAC de la clave con un secreto del servidor: aunque se filtrara la base, la clave no se puede recuperar ni probar fuera. */
+export function hashClaveConsulta(clave: string, secreto: string) {
+  return createHmac('sha256', `clave-consulta|${secreto}`).update(normalizarClaveConsulta(clave)).digest('hex');
+}
+
+/** Comparación en tiempo constante de dos hashes hex de igual longitud. */
+export function igualesTiempoConstante(a: string, b: string) {
+  const x = Buffer.from(a, 'hex');
+  const y = Buffer.from(b, 'hex');
+  return x.length === y.length && x.length > 0 && timingSafeEqual(x, y);
 }

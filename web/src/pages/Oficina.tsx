@@ -73,7 +73,7 @@ function Anillo({ valor, max, etiqueta, color, sufijo = '' }: { valor: number | 
   return (
     <figure className="flex flex-col items-center gap-1" aria-label={`${etiqueta}: ${valor ?? 'sin datos'}${sufijo}`}>
       <svg width="88" height="88" viewBox="0 0 88 88" role="img">
-        <circle cx="44" cy="44" r={r} fill="none" stroke="rgba(148,163,184,.18)" strokeWidth="7" />
+        <circle cx="44" cy="44" r={r} fill="none" stroke="rgba(52,72,63,.10)" strokeWidth="7" />
         <circle cx="44" cy="44" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeDasharray={`${c * frac} ${c}`} transform="rotate(-90 44 44)" />
         <text x="44" y="49" textAnchor="middle" className="fill-white text-[19px] font-semibold tabular-nums">{valor == null ? '—' : `${valor}${sufijo}`}</text>
       </svg>
@@ -99,7 +99,7 @@ function SalaPanel({ id, lista, actividades, onSelect }: { id: string; lista: Pr
   const nav = useNavigate();
   const room = ROOMS.find((r) => r.id === id);
   const abierta = (ZONES_ABIERTAS as Record<string, { nombre: string; ruta?: string; descripcion: string }>)[id];
-  const info = room ? { nombre: room.nombre + (room.sub ? ` (${room.sub})` : ''), ruta: room.ruta, descripcion: room.descripcion, color: room.color } : { ...abierta, color: '#1d4ed8' };
+  const info = room ? { nombre: room.nombre + (room.sub ? ` (${room.sub})` : ''), ruta: room.ruta, descripcion: room.descripcion, color: room.color } : { ...abierta, color: '#4D665C' };
   const map = SALA_ZONA[id];
   const presentes = lista.filter((p) => p.conectado && map && p.zona === map.zona);
   const asignados = map?.profesionales ? lista.filter(map.profesionales) : [];
@@ -243,20 +243,20 @@ export default function Oficina() {
     <div className="flex flex-col gap-2 p-2 sm:p-3">
       {/* indicadores compactos */}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 scroll-thin" aria-label="Indicadores en tiempo real">
-        <Kpi icon={Users} valor={r?.profesionales} label="Profesionales" color="#60a5fa" />
-        <Kpi icon={Wifi} valor={r?.conectados} label="Conectados" color="#22c55e" />
-        <Kpi icon={CheckCircle2} valor={r?.disponibles} label="Disponibles" color="#22c55e" />
-        <Kpi icon={Stethoscope} valor={r?.en_consulta} label="En consulta" color="#3b82f6" />
-        <Kpi icon={UsersRound} valor={r?.en_reunion} label="En reunión" color="#a855f7" />
-        <Kpi icon={CalendarDays} valor={r?.atenciones_hoy} label="Atenciones hoy" color="#e2e8f0" />
-        <Kpi icon={CalendarClock} valor={r?.proximas_citas} label="Próximas citas" color="#e2e8f0" />
-        <Kpi icon={Share2} valor={r?.derivaciones_pendientes} label="Derivaciones pendientes" color="#c084fc" />
+        <Kpi icon={Users} valor={r?.profesionales} label="Profesionales" color="#4D665C" />
+        <Kpi icon={Wifi} valor={r?.conectados} label="Conectados" color="#3F8F5F" />
+        <Kpi icon={CheckCircle2} valor={r?.disponibles} label="Disponibles" color="#3F8F5F" />
+        <Kpi icon={Stethoscope} valor={r?.en_consulta} label="En consulta" color="#8A6FA8" />
+        <Kpi icon={UsersRound} valor={r?.en_reunion} label="En reunión" color="#B08F6C" />
+        <Kpi icon={CalendarDays} valor={r?.atenciones_hoy} label="Atenciones hoy" color="#34483F" />
+        <Kpi icon={CalendarClock} valor={r?.proximas_citas} label="Próximas citas" color="#34483F" />
+        <Kpi icon={Share2} valor={r?.derivaciones_pendientes} label="Derivaciones pendientes" color="#957556" />
       </div>
 
       <div
         ref={contenedor}
         className="relative overflow-hidden rounded-2xl border"
-        style={{ borderColor: 'var(--line)', background: '#04102b', height: completa ? '100vh' : 'max(520px, calc(100vh - 128px))' }}
+        style={{ borderColor: 'var(--line)', background: '#E9EFEA', height: completa ? '100vh' : 'max(520px, calc(100vh - 128px))' }}
       >
         {presencia.isLoading ? (
           <Spinner label="Cargando oficina…" />
@@ -314,7 +314,7 @@ export default function Oficina() {
 
         {/* panel contextual (profesional o sala) */}
         {panel && (
-          <aside className="absolute bottom-2 right-2 top-14 flex w-[min(340px,calc(100%-16px))] flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur" style={{ borderColor: 'var(--line)', background: 'rgba(6,22,51,0.92)' }} aria-label="Panel contextual">
+          <aside className="absolute bottom-2 right-2 top-14 flex w-[min(340px,calc(100%-16px))] flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,0.94)' }} aria-label="Panel contextual">
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: 'var(--line)' }}>
               <span className="text-[14px] font-semibold">{sala ? 'Departamento' : 'Profesional seleccionado'}</span>
               <button className="rounded-md p-1 hover:bg-white/10" onClick={() => setPanel(false)} aria-label="Cerrar panel"><X size={15} /></button>
@@ -347,9 +347,9 @@ export default function Oficina() {
             <span className="text-[11px] font-normal muted">Actualizado: {r ? fHora(r.actualizado) : '—'}</span>
           </h2>
           <div className="flex flex-wrap justify-around gap-2">
-            <Anillo valor={r?.atendidas_hoy ?? null} max={Math.max(1, r?.atenciones_hoy ?? 0)} etiqueta="Atenciones realizadas hoy" color="#22c55e" />
-            <Anillo valor={r?.cumplimiento_agenda_hoy ?? null} max={100} sufijo="%" etiqueta="Cumplimiento de agenda hoy" color="#3b82f6" />
-            <Anillo valor={r?.derivaciones_activas ?? null} max={Math.max(1, r?.derivaciones_activas ?? 0)} etiqueta="Derivaciones activas" color="#a855f7" />
+            <Anillo valor={r?.atendidas_hoy ?? null} max={Math.max(1, r?.atenciones_hoy ?? 0)} etiqueta="Atenciones realizadas hoy" color="#3F8F5F" />
+            <Anillo valor={r?.cumplimiento_agenda_hoy ?? null} max={100} sufijo="%" etiqueta="Cumplimiento de agenda hoy" color="#78958A" />
+            <Anillo valor={r?.derivaciones_activas ?? null} max={Math.max(1, r?.derivaciones_activas ?? 0)} etiqueta="Derivaciones activas" color="#B08F6C" />
           </div>
         </section>
         <section className="panel p-3">

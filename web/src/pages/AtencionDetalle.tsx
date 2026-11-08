@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { Lock, ShieldCheck, FolderHeart, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { Badge, Card, ErrorMsg, Field, Modal, PageHeader, Spinner, useSubmit } from '../components/ui';
 import { CitaAcciones } from '../components/CitaAcciones';
+import { RegistroClinicoPasos } from '../components/RegistroClinicoPasos';
 import { fFechaHora, localGalToISO } from '../lib/format';
 import { tonoAtencion } from './Agenda';
 import { CAMPOS_ENTRADA, CAMPO_ENTRADA_LABEL, ESTADO_ATENCION_LABEL, ESPECIALIDAD_LABEL, type CampoEntrada, type EstadoAtencion } from '@shared/domain';
@@ -15,18 +16,10 @@ export default function AtencionDetalle() {
   const { id } = useParams();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['atencion', id], queryFn: () => api.get(`/api/atenciones/${id}`) });
-  const [nota, setNota] = useState<Record<CampoEntrada, string>>(vacio);
-  const [conf, setConf] = useState<'equipo_clinico' | 'restringida'>('equipo_clinico');
   const [seg, setSeg] = useState({ fecha: '', nota: '' });
   const [adenda, setAdenda] = useState(false);
   const [ad, setAd] = useState({ motivo: '', contenido: '' });
   const [confirmar, setConfirmar] = useState(false);
-  useEffect(() => {
-    if (q.data?.nota) setNota({ ...vacio, ...q.data.nota });
-    if (q.data?.entrada?.confidencialidad) setConf(q.data.entrada.confidencialidad);
-  }, [q.data?.nota, q.data?.entrada?.confidencialidad]);
-  const limpio = () => Object.fromEntries(Object.entries(nota).filter(([, v]) => v.trim())) as Record<string, string>;
-  const guardar = useSubmit(() => api.put(`/api/atenciones/${id}/nota`, { ...limpio(), resumen: nota.resumen, confidencialidad: conf }), () => qc.invalidateQueries());
   const validar = useSubmit(() => api.post(`/api/atenciones/${id}/nota/validar`), () => { setConfirmar(false); qc.invalidateQueries(); });
   const adendar = useSubmit(() => api.post(`/api/expedientes/entradas/${q.data.entrada.id}/adendas`, ad), () => { setAdenda(false); setAd({ motivo: '', contenido: '' }); qc.invalidateQueries(); });
   const crearSeg = useSubmit(
@@ -54,7 +47,7 @@ export default function AtencionDetalle() {
           </>
         }
       />
-      <div className="grid gap-3 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-3 lg:grid-cols-[1fr_340px] [&>*]:min-w-0">
         <div className="space-y-3">
           <Card title="Acciones">
             <CitaAcciones a={a} />
@@ -62,30 +55,16 @@ export default function AtencionDetalle() {
           </Card>
           {editable ? (
             <Card title={<span className="flex items-center gap-2"><Lock size={16} className="text-emerald-300" /> Registro clínico (borrador v{entrada?.version ?? 1}, cifrado)</span>}>
-              <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); guardar.run(undefined); }}>
-                {CAMPOS_ENTRADA.map((c) => (
-                  <div key={c} className={c === 'resumen' ? 'sm:col-span-2' : ''}>
-                    <Field label={CAMPO_ENTRADA_LABEL[c] + (c === 'resumen' ? ' *' : '')}>
-                      <textarea className={`input ${c === 'resumen' ? 'min-h-[90px]' : ''}`} required={c === 'resumen'} value={nota[c]} onChange={(e) => setNota({ ...nota, [c]: e.target.value })} />
-                    </Field>
-                  </div>
-                ))}
-                <div className="sm:col-span-2">
-                  <Field label="Confidencialidad" hint="«Equipo clínico»: accesible a los profesionales clínicos con relación asistencial (continuidad). «Restringida»: solo usted.">
-                    <select className="input" value={conf} onChange={(e) => setConf(e.target.value as typeof conf)}>
-                      <option value="equipo_clinico">Equipo clínico tratante</option>
-                      <option value="restringida">Restringida al autor</option>
-                    </select>
-                  </Field>
-                </div>
-                <div className="sm:col-span-2"><ErrorMsg error={guardar.error ?? validar.error} /></div>
-                <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
-                  <button className="btn-primary" disabled={guardar.busy}>Guardar borrador</button>
-                  {a.estado === 'atendida' && <button type="button" className="btn-ghost" onClick={() => setConfirmar(true)}><ShieldCheck size={15} /> Validar y firmar</button>}
-                  {a.documentada_at && <span className="text-xs muted">Documentada {fFechaHora(a.documentada_at)}</span>}
-                </div>
-                <p className="text-[11px] faint sm:col-span-2">Cada guardado conserva la versión anterior. Tras validar, la entrada es inmutable y solo admite adendas. No se realizan diagnósticos automáticos.</p>
-              </form>
+              <RegistroClinicoPasos
+                key={a.id}
+                atencionId={a.id}
+                inicial={{ ...vacio, ...(q.data.nota ?? {}) }}
+                confidencialidadInicial={entrada?.confidencialidad ?? 'equipo_clinico'}
+                version={entrada?.version ?? 1}
+                puedeValidar={a.estado === 'atendida'}
+                onValidar={() => setConfirmar(true)}
+              />
+              {a.documentada_at && <p className="mt-2 text-xs muted">Documentada {fFechaHora(a.documentada_at)}</p>}
             </Card>
           ) : puede_ver_nota && (q.data.nota || validada) ? (
             <Card
@@ -144,7 +123,7 @@ export default function AtencionDetalle() {
         <ErrorMsg error={validar.error} />
         <div className="mt-4 flex justify-end gap-2">
           <button className="btn-ghost" onClick={() => setConfirmar(false)}>Cancelar</button>
-          <button className="btn-primary" disabled={validar.busy} onClick={async () => { if (await guardar.run(undefined)) await validar.run(undefined); }}>Guardar y validar</button>
+          <button className="btn-primary" disabled={validar.busy} onClick={() => validar.run(undefined)}>Validar y firmar</button>
         </div>
       </Modal>
       <Modal open={adenda} onClose={() => setAdenda(false)} title="Adenda">

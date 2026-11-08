@@ -64,7 +64,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 pt-10 backdrop-blur-sm sm:p-6 sm:pt-16" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-profundo-950/35 p-3 pt-10 backdrop-blur-sm sm:p-6 sm:pt-16" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`panel w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} p-5`} style={{ background: 'var(--panel-solid)' }}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">{title}</h2>
@@ -166,7 +166,7 @@ export function Avatar({ nombre, color, size = 40 }: { nombre: string; color?: s
     .join('')
     .toUpperCase();
   return (
-    <div className="grid shrink-0 place-items-center rounded-full bg-navy-700 font-semibold text-white" style={{ width: size, height: size, fontSize: size * 0.36, boxShadow: `inset 0 0 0 ${Math.max(2, size / 16)}px ${color ?? '#1a4296'}` }} aria-hidden>
+    <div className="grid shrink-0 place-items-center rounded-full bg-eucalipto font-semibold text-white" style={{ width: size, height: size, fontSize: size * 0.36, boxShadow: `inset 0 0 0 ${Math.max(2, size / 16)}px ${color ?? '#78958A'}` }} aria-hidden>
       {ini}
     </div>
   );

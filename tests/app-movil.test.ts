@@ -87,4 +87,89 @@ describe('App móvil: notificaciones push y caché', () => {
     expect(datos.enlace).toMatch(/^\/solicitudes\//);
     expect(aviso!.cuerpo).not.toContain('pantalla bloqueada');
   });
+
+  it('aviso de prueba: solo a los dispositivos de quien lo pide, sin datos institucionales, y con límite de envíos', async () => {
+    const coord = client(conClaves, await loginCookie(conClaves, 'coord@movil.ec'));
+    const gabriel = client(conClaves, await loginCookie(conClaves, 'gabriel@movil.ec'));
+    expect((await client(sinClaves, await loginCookie(sinClaves, 'gabriel@movil.ec')).post('/api/push/prueba', {})).status).toBe(503);
+    await gabriel.post('/api/push/anular', { endpoint: suscripcion(4).endpoint });
+    expect((await gabriel.post('/api/push/prueba', {})).status).toBe(409); // sin dispositivos suscritos
+    expect((await gabriel.post('/api/push/suscribir', suscripcion(4))).status).toBe(200);
+    enviados.length = 0;
+    const r = await gabriel.post('/api/push/prueba', {});
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ enviadas: 1, fallidas: 0 });
+    expect(enviados.map((e) => e.endpoint)).toEqual([suscripcion(4).endpoint]); // la suscripción de Coordinación (3) no recibe nada
+    expect(JSON.parse(enviados[0].cuerpo)).toEqual({ titulo: 'Prueba: las notificaciones funcionan en este dispositivo', enlace: '/inicio', tag: 'prueba' });
+    const estados: number[] = [];
+    for (let i = 0; i < 6; i++) estados.push((await gabriel.post('/api/push/prueba', {})).status);
+    expect(estados).toContain(429);
+    expect((await coord.get('/api/push/clave')).status).toBe(200);
+  });
+});
+
+describe('Consulta pública del estado de una solicitud (sin cuenta)', () => {
+  let app: BuiltApp;
+  beforeAll(async () => {
+    await resetDb();
+    app = await testApp(undefined, {});
+    await crearUsuario(app, 'coord@estado.ec', 'coordinacion');
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+  const consultar = (codigo: string, clave: string, ip = '10.0.0.1') =>
+    app.app.inject({ method: 'POST', url: '/api/publico/solicitud-estado', payload: { codigo, clave }, remoteAddress: ip });
+
+  it('entrega la clave una sola vez, guarda solo su HMAC y muestra únicamente la etapa', async () => {
+    const r = await app.app.inject({
+      method: 'POST',
+      url: '/api/publico/solicitud-atencion',
+      payload: { nombre: 'Persona de prueba', contacto: '0999999999', preferencia: 'psicologia', motivo: 'Motivo privado de prueba', acepta_aviso: true },
+      remoteAddress: '10.0.0.9',
+    });
+    expect(r.statusCode).toBe(200);
+    const { codigo, clave } = r.json();
+    expect(clave).toMatch(/^[2-9A-HJKMNP-TW-Z]{5}-[2-9A-HJKMNP-TW-Z]{5}$/);
+    const fila = (await app.ctx.db.query(`select clave_consulta_hash from ops.solicitudes_atencion where codigo = $1`, [codigo])).rows[0];
+    expect(fila.clave_consulta_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(fila)).not.toContain(clave.replace('-', ''));
+
+    const ok = await consultar(codigo.toLowerCase(), clave.toLowerCase().replace('-', ' '));
+    expect(ok.statusCode).toBe(200);
+    const cuerpo = ok.json();
+    expect(Object.keys(cuerpo).sort()).toEqual(['actualizada', 'codigo', 'etapa']);
+    expect(cuerpo.etapa).toBe('recibida');
+    expect(ok.body).not.toMatch(/Persona de prueba|0999999999|Motivo privado/);
+  });
+
+  it('código o clave incorrectos dan la misma respuesta genérica (no revela si el código existe)', async () => {
+    const r = await app.app.inject({
+      method: 'POST',
+      url: '/api/publico/solicitud-atencion',
+      payload: { nombre: 'Otra persona de prueba', contacto: '0988888888', preferencia: 'medicina', acepta_aviso: true },
+      remoteAddress: '10.0.0.8',
+    });
+    const { codigo } = r.json();
+    const claveMala = await consultar(codigo, 'AAAAA-AAAAA', '10.0.0.2');
+    const codigoInexistente = await consultar('SA-9999', 'AAAAA-AAAAA', '10.0.0.2');
+    expect(claveMala.statusCode).toBe(404);
+    expect(codigoInexistente.statusCode).toBe(404);
+    expect(claveMala.json().error).toBe(codigoInexistente.json().error);
+  });
+
+  it('las solicitudes registradas internamente no tienen clave pública', async () => {
+    const coord = client(app, await loginCookie(app, 'coord@estado.ec'));
+    const r = await coord.post('/api/atencion-abierta', { nombre: 'Registro interno de prueba', contacto: '0977777777', preferencia: 'psicologia', acepta_aviso: true });
+    expect(r.status).toBe(200);
+    expect(r.body.clave).toBeNull();
+    expect((await consultar(r.body.codigo, 'AAAAA-AAAAA', '10.0.0.3')).statusCode).toBe(404);
+  });
+
+  it('limita los intentos por dirección', async () => {
+    const estados: number[] = [];
+    for (let i = 0; i < 12; i++) estados.push((await consultar('SA-0001', 'BBBBB-BBBBB', '10.0.0.4')).statusCode);
+    expect(estados.slice(0, 10).every((s) => s === 404)).toBe(true);
+    expect(estados.slice(10)).toEqual([429, 429]);
+  });
 });

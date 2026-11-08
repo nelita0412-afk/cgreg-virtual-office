@@ -88,10 +88,21 @@ Sin cambios en el backend (Fastify/PostgreSQL), las migraciones ni los módulos 
 
 ### Pendiente o requiere decisión
 - **Push en producción**: generar las claves VAPID y servir la app por HTTPS. En iPhone, el push solo funciona con la app instalada (iOS 16.4 o posterior).
-- **Agenda en el teléfono**: hoy muestra la semana apilada; falta una vista de día con gestos (deslizar entre días).
-- **Formularios clínicos largos** (registro de atención, historia clínica): funcionan en el teléfono, pero conviene una versión por pasos.
-- **Consulta del estado de una solicitud abierta** por el servidor (sin cuenta): requiere definir cómo identificarlo sin exponer datos.
 - **Publicación en tiendas** (Google Play / App Store): no es necesaria para una PWA; se puede evaluar después.
+
+## Segunda evolución 2.0 (noviembre 2026)
+
+### Implementado y verificado
+- **Identidad visual «bienestar»** en toda la plataforma (salvia, eucalipto, marfil, arena, verde profundo); sin azul dominante, también en la oficina 3D, el ícono de la app, el manifest y la página sin conexión. Logos institucionales sin cambios.
+- **Micro-animaciones**: entrada de pantallas (220 ms, solo transform/opacity), presión de botones, hoja inferior con curva de cajón; todas respetan «reducir movimiento».
+- **Agenda móvil** (`pages/AgendaMovil.tsx`): tira de la semana, vista de día, deslizar entre días y semanas, indicador «ahora», hoja inferior con las acciones existentes de la cita. En escritorio se conserva la cuadrícula semanal.
+- **Registro clínico por pasos** (`components/RegistroClinicoPasos.tsx`): 4 pasos con validación, guardado cifrado y versionado en el servidor al avanzar/retroceder y al pasar la app a segundo plano, aviso antes de salir con cambios sin guardar. Nada se guarda en el dispositivo.
+- **Consulta del estado sin cuenta** (`/servidor/estado`, migración `006`): clave mostrada una sola vez; el servidor guarda solo su HMAC; respuesta genérica ante datos incorrectos; límite de intentos; solo muestra la etapa.
+- **Push**: aviso de prueba (`POST /api/push/prueba`) desde Ajustes del teléfono y desde Configuración → «Este dispositivo».
+
+### Pendiente o requiere decisión
+- **Claves VAPID de producción** y **HTTPS**: el push no se activa sin ellas. Las claves del entorno de demostración no sirven para producción.
+- **Prueba en teléfonos reales** (iPhone con la app instalada, Android): la entrega real por los servicios de Apple/Google no puede probarse desde el entorno de pruebas.
 
 ## Funcionalidad previa (se conserva)
 

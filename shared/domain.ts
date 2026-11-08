@@ -55,13 +55,13 @@ export const ESTADO_PRESENCIA_LABEL: Record<EstadoPresencia, string> = {
   fuera_de_horario: 'Fuera de horario',
 };
 export const ESTADO_PRESENCIA_COLOR: Record<EstadoPresencia, string> = {
-  disponible: '#22c55e',
-  en_consulta: '#3b82f6',
-  en_documentacion: '#f59e0b',
-  en_reunion: '#a855f7',
-  en_pausa: '#94a3b8',
-  desconectado: '#64748b',
-  fuera_de_horario: '#475569',
+  disponible: '#3F9B66',
+  en_consulta: '#8A6FA8',
+  en_documentacion: '#C98A2E',
+  en_reunion: '#B07A55',
+  en_pausa: '#8FA39A',
+  desconectado: '#7A8C83',
+  fuera_de_horario: '#A3B2AA',
 };
 
 /** Zonas de la oficina virtual a las que puede desplazarse un avatar. */

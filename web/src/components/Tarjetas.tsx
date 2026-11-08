@@ -19,7 +19,7 @@ export function Tarjeta({ to, titulo, detalle, insignias, pie }: { to?: string; 
     </>
   );
   const cls = 'flex min-h-16 items-start gap-3 rounded-2xl border px-4 py-3 transition-colors duration-150';
-  const st = { borderColor: 'var(--line)', background: 'rgba(3,11,31,.35)' };
+  const st = { borderColor: 'var(--line)', background: 'var(--panel)' };
   return (
     <li>
       {to ? <Link to={to} className={`${cls} hover:bg-white/[0.04] active:bg-white/[0.07]`} style={st}>{cuerpo}</Link> : <div className={cls} style={st}>{cuerpo}</div>}

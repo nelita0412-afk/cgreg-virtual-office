@@ -102,7 +102,7 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
   const seed = useMemo(() => (hash(p.clave) % 1000) / 1000, [p.clave]);
   const estilo: Estilo = useMemo(
     () => {
-      const e: Estilo = { pelo: 'corto', lentes: false, bata: false, saco: p.color ?? '#0e7490', camisa: '#e2e8f0', pantalon: '#1f2937', ...(ESTILOS[p.profesional_id ?? ''] ?? {}) };
+      const e: Estilo = { pelo: 'corto', lentes: false, bata: false, saco: p.color ?? '#4D665C', camisa: '#e2e8f0', pantalon: '#1f2937', ...(ESTILOS[p.profesional_id ?? ''] ?? {}) };
       // Bata blanca para todo el personal clínico: psicólogas/os y médicos (Telemedicina y Psiquiatría).
       if (p.especialidad) {
         e.bata = true;
@@ -129,7 +129,7 @@ export function Human({ p, slot, seleccionado, onSelect, reducirMovimiento, somb
       estetoscopio: m('#1f2937', 0.5),
       metal: new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.9, roughness: 0.25 }),
       estado: new THREE.MeshBasicMaterial({ color: ESTADO_PRESENCIA_COLOR[p.estado], transparent: true, opacity: 0.9, depthWrite: false }),
-      sel: new THREE.MeshBasicMaterial({ color: '#22d3ee', transparent: true, opacity: 0.22, depthWrite: false }),
+      sel: new THREE.MeshBasicMaterial({ color: '#78958A', transparent: true, opacity: 0.22, depthWrite: false }),
     };
   }, [p.clave, p.cabello, estilo]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {

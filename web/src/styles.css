@@ -3,43 +3,61 @@
 @tailwind utilities;
 
 :root {
-  --bg: #030b1f;
-  --panel: rgba(9, 27, 62, 0.82);
-  --panel-solid: #0b1d42;
-  --line: rgba(120, 170, 255, 0.16);
-  --ink: #e8f0ff;
-  --ink-2: #a9bbd9;
-  --ink-3: #7489ad;
-  --accent: #22d3ee;
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --good: #0ca30c;
-  --warning: #fab219;
-  --serious: #ec835a;
-  --critical: #d03b3b;
+  color-scheme: light;
+  /* Identidad «bienestar y tranquilidad» */
+  --bg: #F5F3EC;            /* marfil */
+  --panel: rgba(255, 255, 255, 0.78);
+  --panel-solid: #FFFFFF;
+  --surface: #DCE8E1;       /* eucalipto claro */
+  --line: rgba(52, 72, 63, 0.12);
+  --line-strong: rgba(52, 72, 63, 0.22);
+  --ink: #34483F;           /* verde profundo */
+  --ink-2: #4A5E54;
+  --ink-3: #5F7369;
+  --accent: #78958A;        /* verde salvia */
+  --accent-ink: #4D665C;
+  --sand: #C5A989;          /* arena */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --series-1: #78958A;
+  --series-2: #C5A989;
+  --series-3: #4D665C;
+  --series-4: #B08F6C;
+  --good: #3F8F5F;
+  --warning: #B7791F;
+  --serious: #C0612B;
+  --critical: #B4423A;
 }
 
 html, body, #root { height: 100%; }
 body {
   @apply font-sans antialiased;
-  background: radial-gradient(1200px 700px at 70% -10%, #0f2d66 0%, transparent 60%), linear-gradient(180deg, #051231 0%, #030b1f 100%);
-  background-color: var(--bg);
+  background:
+    radial-gradient(900px 520px at 85% -8%, rgba(220, 232, 225, 0.9) 0%, transparent 60%),
+    radial-gradient(700px 420px at -10% 105%, rgba(197, 169, 137, 0.16) 0%, transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--ink);
+  text-rendering: optimizeLegibility;
 }
 
 @layer components {
-  .panel { @apply rounded-2xl border backdrop-blur; background: var(--panel); border-color: var(--line); }
-  .panel-title { @apply text-[15px] font-semibold tracking-tight text-white; }
+  .panel { @apply rounded-2xl border shadow-suave backdrop-blur; background: var(--panel); border-color: var(--line); }
+  .panel-title { @apply text-[15px] font-semibold tracking-tight; color: var(--ink); }
   .muted { color: var(--ink-2); }
   .faint { color: var(--ink-3); }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed; }
-  .btn-primary { @apply btn bg-gradient-to-b from-sky-500 to-blue-700 text-white shadow-glow hover:from-sky-400 hover:to-blue-600; }
-  .btn-ghost { @apply btn border text-slate-100 hover:bg-white/5; border-color: var(--line); }
-  .btn-danger { @apply btn bg-red-600/90 text-white hover:bg-red-500; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-salvia-500 focus-visible:ring-offset-2 focus-visible:ring-offset-marfil disabled:opacity-50 disabled:cursor-not-allowed; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .12s var(--ease-out), box-shadow .15s ease; }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn-primary { @apply btn shadow-glow; background: var(--ink); color: #F5F3EC; }
+  .btn-primary:hover:not(:disabled) { background: #2B3C34; }
+  .btn-ghost { @apply btn border; color: var(--ink); border-color: var(--line-strong); background: rgba(255,255,255,.55); }
+  .btn-ghost:hover:not(:disabled) { background: #FFFFFF; border-color: rgba(52,72,63,.32); }
+  .btn-danger { @apply btn; background: #B4423A; color: #FFF8F5; }
+  .btn-danger:hover:not(:disabled) { background: #9C362F; }
   .btn-sm { @apply px-2.5 py-1.5 text-xs rounded-lg; }
-  .input { @apply w-full rounded-xl border bg-navy-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/60; border-color: var(--line); }
+  .input { @apply w-full rounded-xl border bg-nieve px-3 py-2 text-sm placeholder:text-profundo-500 focus:outline-none focus:ring-2 focus:ring-salvia-500/50; color: var(--ink); border-color: var(--line-strong); transition: border-color .15s ease, box-shadow .15s ease; }
+  .input:focus { border-color: var(--accent); }
+  .input[aria-invalid='true'] { border-color: #B4423A; }
   .label { @apply mb-1 block text-xs font-medium muted; }
   .chip { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium; }
   .table { @apply w-full text-sm; }
@@ -47,7 +65,7 @@ body {
   .table td { @apply border-t px-3 py-2.5 align-top; border-color: var(--line); }
   .table tbody tr:hover { background: rgba(255,255,255,0.025); }
   .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-  .scroll-thin::-webkit-scrollbar-thumb { background: rgba(120,170,255,.25); border-radius: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: rgba(52,72,63,.18); border-radius: 8px; }
 }
 
 /* App móvil: en pantallas táctiles los campos usan 16px (iOS no hace zoom al enfocarlos) y no hay resaltado gris al tocar. */
@@ -61,4 +79,22 @@ body { overscroll-behavior-y: none; }
 .office-label { pointer-events: auto; user-select: none; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ---------------- Movimiento: entrada de pantallas (ocasional, 220 ms, solo opacidad/transform) ---------------- */
+@keyframes entrar-pantalla { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.entrada-pantalla { animation: entrar-pantalla .22s var(--ease-out) backwards; }
+@keyframes aparecer-suave { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .entrada-pantalla { animation: aparecer-suave .15s ease backwards; }
+}
+::selection { background: rgba(120, 149, 138, .3); }
+
+/* ---------------- Agenda móvil: el día nuevo entra desde el lado hacia el que se deslizó (220 ms) ---------------- */
+@keyframes dia-desde-derecha { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes dia-desde-izquierda { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.dia-desde-derecha { animation: dia-desde-derecha .22s var(--ease-out) backwards; }
+.dia-desde-izquierda { animation: dia-desde-izquierda .22s var(--ease-out) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .dia-desde-derecha, .dia-desde-izquierda { animation: aparecer-suave .15s ease backwards; }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2, Copy, KeyRound, Search, ShieldCheck } from 'lucide-react';
 import { ErrorMsg, Field, Spinner, useSubmit } from '../components/ui';
 
 /** Llamadas públicas (sin sesión ni cabecera de mutación autenticada). */
@@ -12,7 +12,8 @@ async function pub<T = any>(method: string, url: string, body?: unknown): Promis
     throw new Error('Sin conexión a internet. Sus respuestas siguen en el formulario: vuelva a enviarlo cuando tenga señal.');
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `Error ${res.status}`);
+  if (res.status === 429) throw Object.assign(new Error('Demasiados intentos seguidos. Por seguridad, espere unos minutos y vuelva a intentarlo.'), { status: 429 });
+  if (!res.ok) throw Object.assign(new Error(data?.error ?? `Error ${res.status}`), { status: res.status });
   return data;
 }
 
@@ -47,7 +48,7 @@ function Emergencia({ texto }: { texto?: string }) {
 export function SolicitarAtencion() {
   const [cfg, setCfg] = useState<{ formulario_habilitado: boolean; emergencia_texto: string } | null>(null);
   const [f, setF] = useState({ nombre: '', identificador: '', unidad: '', contacto: '', preferencia: 'psicologia', horario: '', motivo: '', acepta_aviso: false, sitio_web: '' });
-  const [hecho, setHecho] = useState<{ codigo: string; mensaje: string } | null>(null);
+  const [hecho, setHecho] = useState<{ codigo: string; clave?: string; mensaje: string } | null>(null);
   useEffect(() => {
     pub('GET', '/api/publico/config').then(setCfg).catch(() => setCfg({ formulario_habilitado: false, emergencia_texto: '' }));
   }, []);
@@ -74,6 +75,7 @@ export function SolicitarAtencion() {
           <h2 className="mt-3 text-lg font-semibold">Solicitud registrada</h2>
           <p className="mt-2 text-sm muted">{hecho.mensaje}</p>
           <p className="mt-3 text-sm">Código de su solicitud: <strong className="font-mono">{hecho.codigo}</strong></p>
+          {hecho.clave && <ClaveUnaVez codigo={hecho.codigo} clave={hecho.clave} />}
         </div>
       ) : !cfg.formulario_habilitado ? (
         <div className="panel p-6 text-sm muted">El formulario no está disponible en este momento. Comuníquese con la Coordinación de la brigada.</div>
@@ -169,6 +171,121 @@ export function FirmarConsentimiento() {
           </form>
         </>
       )}
+    </Marco>
+  );
+}
+
+/** La clave se muestra una sola vez: el servidor solo guarda su huella y no puede volver a mostrarla. */
+function ClaveUnaVez({ codigo, clave }: { codigo: string; clave: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(`${codigo} · ${clave}`);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      /* sin portapapeles: la clave queda visible para anotarla */
+    }
+  };
+  return (
+    <div className="mt-5 rounded-2xl border p-4 text-left" style={{ borderColor: 'rgba(197,169,137,.6)', background: 'rgba(197,169,137,.12)' }}>
+      <div className="flex items-center gap-2 text-sm font-semibold text-profundo-900">
+        <KeyRound size={16} aria-hidden /> Clave para consultar el estado
+      </div>
+      <div className="mt-2 select-all text-center font-mono text-[26px] font-semibold tracking-[0.12em] text-profundo-900" aria-label={`Clave: ${clave.split('').join(' ')}`}>
+        {clave}
+      </div>
+      <p className="mt-2 text-xs leading-relaxed muted">
+        Anótela o tómele una captura. Por seguridad <strong>no se puede volver a mostrar</strong>. Con el código {codigo} y esta clave puede ver en qué etapa está su solicitud, sin cuenta.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" className="btn-ghost btn-sm min-h-11" onClick={() => void copiar()}>
+          <Copy size={14} aria-hidden /> {copiado ? 'Copiado' : 'Copiar código y clave'}
+        </button>
+        <Link to={`/servidor/estado?codigo=${encodeURIComponent(codigo)}`} className="btn-ghost btn-sm min-h-11">
+          <Search size={14} aria-hidden /> Consultar estado
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+const ETAPAS = [
+  { id: 'recibida', titulo: 'Recibida', texto: 'La Coordinación General está revisando su solicitud.' },
+  { id: 'asignada', titulo: 'Profesional asignado', texto: 'Ya tiene profesional. Le contactarán por el medio que indicó.' },
+  { id: 'programada', titulo: 'Cita acordada', texto: 'Su cita está programada. Si no recibió el detalle, revise sus mensajes o llamadas.' },
+  { id: 'atendida', titulo: 'Atendida', texto: 'La atención se realizó.' },
+] as const;
+
+/** Consulta del estado sin cuenta: solo muestra la etapa del trámite, nunca datos personales ni clínicos. */
+export function ConsultarEstado() {
+  const [params] = useSearchParams();
+  const [codigo, setCodigo] = useState(params.get('codigo') ?? '');
+  const [clave, setClave] = useState('');
+  const [r, setR] = useState<{ codigo: string; etapa: string; actualizada: string } | null>(null);
+  const s = useSubmit(() => pub('POST', '/api/publico/solicitud-estado', { codigo, clave }), (x) => setR(x));
+  const indice = r ? ETAPAS.findIndex((e) => e.id === r.etapa) : -1;
+  const fecha = r ? new Date(`${r.actualizada}T12:00:00`).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  return (
+    <Marco titulo="Estado de mi solicitud">
+      {r ? (
+        <div className="panel entrada-pantalla p-5" aria-live="polite">
+          <div className="text-xs muted">Solicitud {r.codigo} · actualizada el {fecha}</div>
+          {r.etapa === 'cerrada' ? (
+            <p className="mt-3 text-[15px] text-profundo-900">La solicitud está cerrada. Si todavía necesita apoyo, puede enviar una nueva solicitud.</p>
+          ) : (
+            <ol className="mt-4 flex flex-col gap-0">
+              {ETAPAS.map((e, i) => {
+                const hecha = i < indice;
+                const actual = i === indice;
+                return (
+                  <li key={e.id} className="relative flex gap-3 pb-5 last:pb-0">
+                    {i < ETAPAS.length - 1 && <span className={`absolute left-[11px] top-6 h-[calc(100%-20px)] w-0.5 ${i < indice ? 'bg-salvia-500' : 'bg-profundo-200'}`} aria-hidden />}
+                    <span className={`relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${hecha ? 'border-salvia-500 bg-salvia-500 text-marfil' : actual ? 'border-profundo-900 bg-nieve' : 'border-profundo-200 bg-nieve'}`}>
+                      {hecha ? <CheckCircle2 size={14} aria-hidden /> : actual ? <span className="h-2 w-2 rounded-full bg-profundo-900" /> : null}
+                    </span>
+                    <span>
+                      <span className={`block text-[15px] ${actual ? 'font-semibold text-profundo-900' : hecha ? 'text-profundo-700' : 'faint'}`}>
+                        {e.titulo}
+                        {actual && <span className="sr-only"> (etapa actual)</span>}
+                      </span>
+                      {actual && <span className="mt-0.5 block text-sm muted">{e.texto}</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          <p className="mt-5 flex gap-2 text-[11px] leading-relaxed faint">
+            <ShieldCheck size={13} className="mt-px shrink-0" aria-hidden />
+            Esta consulta solo muestra la etapa del trámite. Sus datos personales y la información de su atención no se muestran aquí.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="btn-ghost btn-sm min-h-11" onClick={() => { setR(null); setClave(''); }}>Consultar otra solicitud</button>
+            <Link to="/servidor" className="btn-ghost btn-sm min-h-11">Volver al inicio</Link>
+          </div>
+        </div>
+      ) : (
+        <form
+          className="panel flex flex-col gap-4 p-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            s.run(undefined);
+          }}
+        >
+          <p className="text-sm muted">Escriba el código de su solicitud y la clave que recibió al enviarla.</p>
+          <Field label="Código de la solicitud">
+            <input className="input min-h-12 font-mono text-[16px] uppercase" placeholder="SA-0000" required maxLength={20} autoComplete="off" autoCapitalize="characters" spellCheck={false} value={codigo} onChange={(e) => setCodigo(e.target.value)} />
+          </Field>
+          <Field label="Clave de consulta" hint="10 letras y números, por ejemplo ABCDE-23456. Puede escribirla con o sin guion.">
+            <input className="input min-h-12 font-mono text-[16px] uppercase tracking-wider" required maxLength={20} autoComplete="off" autoCapitalize="characters" spellCheck={false} value={clave} onChange={(e) => setClave(e.target.value)} />
+          </Field>
+          <ErrorMsg error={s.error} />
+          <button className="btn-primary min-h-12" disabled={s.busy}>{s.busy ? 'Consultando…' : 'Consultar estado'}</button>
+          <p className="text-[11px] leading-relaxed faint">¿Perdió la clave? Por seguridad no se puede recuperar. La brigada le contactará igualmente por el medio que indicó; si lo necesita, comuníquese con la Coordinación General del CGREG.</p>
+        </form>
+      )}
+      <div className="mt-4"><Emergencia /></div>
     </Marco>
   );
 }

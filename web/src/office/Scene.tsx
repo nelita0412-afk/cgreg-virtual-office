@@ -118,9 +118,9 @@ function Anclajes({ presencia }: { presencia: PresenciaSnapshot[] }) {
   const salas = useMemo(
     () => [
       ...ROOMS.map((r) => ({ id: r.id, nombre: r.nombre + (r.sub ? ` (${r.sub})` : ''), color: r.color, p: [r.center[0], 3.4, r.center[1] - r.size[1] / 2 + 0.2] as const })),
-      { id: 'coordinacion', nombre: ZONES_ABIERTAS.coordinacion.nombre, color: '#123170', p: [0, 2.6, -3.2] as const },
-      { id: 'territorial', nombre: ZONES_ABIERTAS.territorial.nombre, color: '#9a3412', p: [10.5, 2.9, -3.4] as const },
-      { id: 'psicologia', nombre: ZONES_ABIERTAS.psicologia.nombre, color: '#1d4ed8', p: [-30, 2.4, 9.6] as const },
+      { id: 'coordinacion', nombre: ZONES_ABIERTAS.coordinacion.nombre, color: '#4D665C', p: [0, 2.6, -3.2] as const },
+      { id: 'territorial', nombre: ZONES_ABIERTAS.territorial.nombre, color: '#957556', p: [10.5, 2.9, -3.4] as const },
+      { id: 'psicologia', nombre: ZONES_ABIERTAS.psicologia.nombre, color: '#607D72', p: [-30, 2.4, 9.6] as const },
     ],
     [],
   );
@@ -181,8 +181,8 @@ function EtiquetasOverlay({ seleccionado, onSelect, onZona, reservaDerecha }: { 
             const bx = Math.abs(e.lx - e.x) > e.w / 2 ? e.lx + (e.x > e.lx ? e.w / 2 : -e.w / 2) : e.x;
             return (
               <g key={e.id} opacity={e.atenuado ? 0.45 : 0.9}>
-                <line x1={e.x} y1={e.y} x2={bx} y2={Math.abs(e.lx - e.x) > e.w / 2 ? e.ly : by} stroke={e.id === seleccionado ? '#22d3ee' : 'rgba(226,232,240,0.85)'} strokeWidth={e.id === seleccionado ? 2 : 1.2} />
-                <circle cx={e.x} cy={e.y} r={3} fill={e.color} stroke="#0b1d42" strokeWidth={1} />
+                <line x1={e.x} y1={e.y} x2={bx} y2={Math.abs(e.lx - e.x) > e.w / 2 ? e.ly : by} stroke={e.id === seleccionado ? '#4D665C' : 'rgba(52,72,63,0.45)'} strokeWidth={e.id === seleccionado ? 2 : 1.2} />
+                <circle cx={e.x} cy={e.y} r={3} fill={e.color} stroke="#FFFFFF" strokeWidth={1.5} />
               </g>
             );
           })}
@@ -194,8 +194,8 @@ function EtiquetasOverlay({ seleccionado, onSelect, onZona, reservaDerecha }: { 
             <button
               key={e.id}
               onClick={() => onZona(e.id.slice(5))}
-              className="pointer-events-auto absolute flex items-center justify-center whitespace-nowrap rounded-lg border border-white/25 px-2.5 text-[12px] font-semibold text-white shadow-lg backdrop-blur"
-              style={{ left: e.lx - e.w / 2, top: e.ly - e.h / 2, width: e.w, height: e.h, background: `linear-gradient(180deg, ${e.color}e6, #061633e6)` }}
+              className="pointer-events-auto absolute flex items-center justify-center whitespace-nowrap rounded-lg border border-white/25 px-2.5 text-[12px] font-semibold text-marfil shadow-lg backdrop-blur"
+              style={{ left: e.lx - e.w / 2, top: e.ly - e.h / 2, width: e.w, height: e.h, background: `linear-gradient(180deg, ${e.color}f0, #34483Ff0)` }}
             >
               {e.modo === 'corto' ? e.corto : e.completo}
             </button>
@@ -204,21 +204,21 @@ function EtiquetasOverlay({ seleccionado, onSelect, onZona, reservaDerecha }: { 
               key={e.id}
               onClick={() => onSelect(e.id)}
               className={`pointer-events-auto absolute flex flex-col items-center justify-center rounded-lg px-2 text-center shadow-xl ring-1 transition-[left,top] duration-150 ${
-                e.id === seleccionado ? 'bg-cyan-50 ring-2 ring-cyan-400' : 'bg-white/95 ring-slate-300'
+                e.id === seleccionado ? 'bg-salvia-50 ring-2 ring-salvia-500' : 'bg-nieve/95 ring-profundo-300'
               } ${e.atenuado ? 'opacity-60' : ''}`}
               style={{ left: e.lx - e.w / 2, top: e.ly - e.h / 2, width: e.w, height: e.h }}
               aria-label={`${e.completo}: ${e.detalle}`}
             >
               {e.modo === 'corto' ? (
-                <span className="flex items-center gap-1 text-[11px] font-bold text-slate-900">
+                <span className="flex items-center gap-1 text-[11px] font-bold text-profundo-900">
                   <span className="h-2 w-2 rounded-full" style={{ background: e.color }} />
                   {e.corto}
                 </span>
               ) : (
                 <>
-                  <span className="w-full truncate text-[11.5px] font-bold leading-tight text-slate-900">{e.completo}</span>
+                  <span className="w-full truncate text-[11.5px] font-bold leading-tight text-profundo-900">{e.completo}</span>
                   {e.detalle && (
-                    <span className="flex items-center gap-1 text-[10.5px] font-medium leading-tight text-slate-700">
+                    <span className="flex items-center gap-1 text-[10.5px] font-medium leading-tight text-profundo-600">
                       <span className="h-2 w-2 rounded-full" style={{ background: e.color }} />
                       {e.detalle}
                     </span>
@@ -251,7 +251,7 @@ function Estacion({ x, z, m, encendida, tex }: { x: number; z: number; m: Mats; 
       </mesh>
       <mesh position={[x, 0.006, 13.4]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[7.6, 5.6]} />
-        <meshStandardMaterial color="#d7dee8" roughness={0.95} />
+        <meshStandardMaterial color="#e3e7df" roughness={0.95} />
       </mesh>
       <Escritorio position={[x, 0, 13.5]} m={m} pantalla={encendida} textura={tex} />
       <Silla position={[x, 0, 12.45]} m={m} />
@@ -271,15 +271,15 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
   const ventanal = useVentanal();
   const { trabajo, video } = usePantallas();
   const suelos = Object.fromEntries(ROOMS.map((r) => [r.id, r.id === 'debriefing' ? parquet : null]));
-  const alfCap = useAlfombra('#9fb2c9');
+  const alfCap = useAlfombra('#b9ccc1');
   const alfPsq = useAlfombra('#b9a8d0');
   const alfTel = useAlfombra('#a9cdb7');
-  const alfCons = useAlfombra('#c4d3e6');
+  const alfCons = useAlfombra('#d9cbb7');
   const marca = useTextoTextura(
     [
-      { t: 'CGREG', f: 'bold 150px Inter, sans-serif', c: '#0b1d42' },
-      { t: 'Oficina Virtual', f: '600 64px Inter, sans-serif', c: '#0b1d42' },
-      { t: 'Brigada de Atención Psicosocial y de Salud', f: '500 40px Inter, sans-serif', c: '#123170' },
+      { t: 'CGREG', f: 'bold 150px Inter, sans-serif', c: '#34483F' },
+      { t: 'Oficina Virtual', f: '600 64px Inter, sans-serif', c: '#34483F' },
+      { t: 'Brigada de Atención Psicosocial y de Salud', f: '500 40px Inter, sans-serif', c: '#4D665C' },
     ],
     1400,
     420,
@@ -287,7 +287,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
   const presentacion = useCanvasTexture((g, w, h) => {
     g.fillStyle = '#f8fafc';
     g.fillRect(0, 0, w, h);
-    g.fillStyle = '#0b2350';
+    g.fillStyle = '#4D665C';
     g.fillRect(0, 0, w, 70);
     g.fillStyle = '#fff';
     g.font = 'bold 40px Inter, sans-serif';
@@ -295,7 +295,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
     g.fillStyle = '#334155';
     g.font = '30px Inter, sans-serif';
     ['Escuchar', 'Proteger', 'Conectar', 'Rutas de apoyo DECE'].forEach((t, i) => g.fillText(`• ${t}`, 50, 140 + i * 56));
-    g.fillStyle = '#22d3ee';
+    g.fillStyle = '#C5A989';
     g.fillRect(620, 120, 300, 260);
   }, 1024, 512);
   const tableroMadera = m.madera;
@@ -340,7 +340,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
       <Anclajes presencia={presencia} />
 
       {/* Iluminación: cielo + sol desde el ventanal + entorno local para reflejos (sin recursos externos) */}
-      <hemisphereLight args={['#eaf4ff', '#5b4a3a', 0.65]} />
+      <hemisphereLight args={['#f4f6ef', '#5b4a3a', 0.65]} />
       <ambientLight intensity={0.25} />
       <directionalLight
         position={[-18, 34, -26]}
@@ -357,10 +357,10 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
         shadow-camera-near={1}
         shadow-camera-far={120}
       />
-      <directionalLight position={[20, 18, 30]} intensity={0.55} color="#dbeafe" />
+      <directionalLight position={[20, 18, 30]} intensity={0.55} color="#eef2e8" />
       <Environment resolution={128} frames={1}>
         <Lightformer form="rect" intensity={2.5} position={[0, 6, -10]} scale={[20, 5, 1]} color="#ffffff" />
-        <Lightformer form="rect" intensity={1.2} position={[10, 8, 10]} scale={[10, 10, 1]} color="#dbeafe" />
+        <Lightformer form="rect" intensity={1.2} position={[10, 8, 10]} scale={[10, 10, 1]} color="#eef2e8" />
         <Lightformer form="ring" intensity={0.8} position={[-10, 5, 5]} scale={4} color="#fde68a" />
       </Environment>
 
@@ -368,18 +368,18 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
       {/* Piso, losa y muros */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial map={piso} color="#dfe2e7" roughness={0.45} metalness={0.02} envMapIntensity={0.5} />
+        <meshStandardMaterial map={piso} color="#e6e4dc" roughness={0.45} metalness={0.02} envMapIntensity={0.5} />
       </mesh>
       {/* Losa: su cara superior queda 2 cm BAJO el piso. Si coincidiera con y = 0 competiría con el piso
           en el búfer de profundidad (z-fighting): manchas oscuras y rayas que cambian al hacer zoom. */}
       <mesh position={[0, -0.32, 0]}>
         <boxGeometry args={[W + 0.8, 0.6, D + 0.8]} />
-        <meshStandardMaterial color="#0b2350" roughness={0.6} />
+        <meshStandardMaterial color="#4D665C" roughness={0.6} />
       </mesh>
       {[-6.6, 7.4].map((z) => (
         <mesh key={z} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, z]} receiveShadow>
           <planeGeometry args={[W - 1, 1.8]} />
-          <meshStandardMaterial color="#cfd6df" roughness={0.6} />
+          <meshStandardMaterial color="#d6dbd2" roughness={0.6} />
         </mesh>
       ))}
       {/* Ventanal panorámico con perfilería */}
@@ -516,7 +516,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
             <Escritorio position={[0.05, 0, 0.3]} rot={Math.PI / 2} w={1.3} m={m} monitores={1} pantalla={ocupada} textura={video} />
             <Silla position={[-0.9, 0, 0.3]} rot={Math.PI / 2} m={m} />
             <Planta position={[2.4, 0, -puertaZ * 0.75]} m={m} scale={0.7} tipo={i % 2} />
-            <Sofa position={[-2.3, 0, -puertaZ * 0.7]} rot={z < 0 ? 0 : Math.PI} m={m} color="#7b8ba3" />
+            <Sofa position={[-2.3, 0, -puertaZ * 0.7]} rot={z < 0 ? 0 : Math.PI} m={m} color="#8CA89C" />
           </group>
         );
       })}
@@ -532,7 +532,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
         </mesh>
         <mesh position={[0, 0.02, 0.4]} rotation={[-Math.PI / 2, 0, 0]} userData={{ dinamico: true }}>
           <ringGeometry args={[2.85, 3.0, 64]} />
-          <meshBasicMaterial color={enZona('coordinacion') ? '#22d3ee' : '#94a3b8'} />
+          <meshBasicMaterial color={enZona('coordinacion') ? '#78958A' : '#A3B2AA'} />
         </mesh>
         <Escritorio position={[0, 0, 0.05]} w={1.8} m={m} pantalla={enZona('coordinacion')} textura={trabajo} tablero={m.madera} />
         <Silla position={[0, 0, -0.9]} m={m} />
@@ -550,7 +550,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
         <Silla position={[0, 0, -1]} m={m} />
         <mesh position={[0, 1.4, -2.7]} castShadow>
           <boxGeometry args={[3.2, 1.8, 0.06]} />
-          <meshStandardMaterial color="#e0f2fe" roughness={0.5} />
+          <meshStandardMaterial color="#e6eee8" roughness={0.5} />
         </mesh>
       </group>
 
@@ -561,7 +561,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
 
       {/* Zona de pausa */}
       <group>
-        <Sofa position={[27.4, 0, 14.05]} m={m} color="#475569" />
+        <Sofa position={[27.4, 0, 14.05]} m={m} color="#607D72" />
         <mesh position={[27.4, 0.22, 15.4]} material={m.madera} castShadow>
           <cylinderGeometry args={[0.55, 0.55, 0.06, 32]} />
         </mesh>
@@ -586,7 +586,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
       ))}
       <mesh position={[0, 0.015, 19.3]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[4, 1.2]} />
-        <meshStandardMaterial color="#0b2350" roughness={1} />
+        <meshStandardMaterial color="#c9d3c8" roughness={1} />
       </mesh>
 
       </Fusionar>
@@ -646,7 +646,7 @@ export default function OfficeScene(props: Props) {
         shadows={sombras ? 'soft' : false}
         dpr={dpr}
         gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.98, outputColorSpace: THREE.SRGBColorSpace }}
-        onCreated={({ gl }) => gl.setClearColor('#04102b')}
+        onCreated={({ gl }) => gl.setClearColor('#E9EFEA')}
         aria-label="Oficina virtual isométrica"
       >
         {/* Calidad adaptativa: baja la resolución en pasos pequeños solo si los FPS caen de forma sostenida.
@@ -661,7 +661,7 @@ export default function OfficeScene(props: Props) {
           onIncline={() => setDpr((d) => Math.min(dprMax, +(d + 0.25).toFixed(2)))}
         />}
         <MedidorFps />
-        <fog attach="fog" args={['#04102b', 160, 320]} />
+        <fog attach="fog" args={['#E9EFEA', 160, 320]} />
         <Suspense fallback={null}>
           <Escena {...props} sombras={sombras} />
         </Suspense>

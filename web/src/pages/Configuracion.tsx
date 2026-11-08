@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useAuth, useCan } from '../lib/auth';
 import { Badge, Card, ErrorMsg, Field, Modal, PageHeader, Spinner, Tabs, useSubmit } from '../components/ui';
 import { CambiarPassword } from './Login';
+import { AjustesDispositivo } from '../components/AppMovil';
 import { fFechaHora } from '../lib/format';
 import { ROLES, ROL_LABEL, SERVICIO_CONSENTIMIENTO_LABEL, type Rol, type ServicioConsentimiento } from '@shared/domain';
 
@@ -45,6 +46,10 @@ function Cuenta() {
         </div>
         <h3 className="mb-2 mt-5 text-sm font-semibold">Cambiar contraseña</h3>
         <CambiarPassword />
+      </Card>
+      <Card title="Este dispositivo">
+        <p className="mb-3 text-sm muted">Instalación de la app y avisos en este teléfono o computadora. Los avisos muestran solo un título breve, nunca datos clínicos.</p>
+        <AjustesDispositivo />
       </Card>
       <Card title="Sesiones activas" actions={<button className="btn-ghost btn-sm" onClick={async () => { await api.post('/api/auth/sesiones/cerrar-otras'); qc.invalidateQueries({ queryKey: ['sesiones'] }); }}>Cerrar las demás</button>}>
         {ses.isLoading ? <Spinner /> : (
@@ -184,7 +189,7 @@ function Usuarios() {
       </Modal>
       <Modal open={!!temporal} onClose={() => setTemporal(null)} title="Contraseña temporal">
         <p className="text-sm muted">Entréguela por un canal seguro. Se muestra una sola vez y debe cambiarse en el primer ingreso.</p>
-        <div className="mt-3 select-all rounded-xl bg-black/40 p-3 text-center font-mono text-lg tracking-wider">{temporal}</div>
+        <div className="mt-3 select-all rounded-xl bg-eucalipto p-3 text-center font-mono text-lg tracking-wider">{temporal}</div>
       </Modal>
     </Card>
   );

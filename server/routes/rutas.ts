@@ -5,7 +5,7 @@ import { HttpError, badRequest, conflict, forbidden, notFound } from '../context
 import { makeGuards } from '../auth';
 import { tx, type Queryable } from '../db';
 import { audit } from '../audit';
-import { sha256 } from '../crypto';
+import { hashClaveConsulta, igualesTiempoConstante, normalizarClaveConsulta, nuevaClaveConsulta, sha256 } from '../crypto';
 import { notificar, usuarioDeProfesional, usuariosPorRol } from '../notify';
 import { exigirAsignacion, parse, u, uuid } from './util';
 import { ESPECIALIDADES_CLINICAS, exigirNivel, nivelAcceso } from '../hce';
@@ -151,6 +151,9 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
       ],
     );
     const { id, codigo } = r.rows[0];
+    // Solo el formulario público entrega clave de consulta: se muestra una vez y se guarda únicamente su HMAC.
+    const clave = canal === 'formulario_publico' ? nuevaClaveConsulta() : null;
+    if (clave) await c.query(`update ops.solicitudes_atencion set clave_consulta_hash = $2 where id = $1`, [id, hashClaveConsulta(clave, ctx.cfg.DATA_ENCRYPTION_KEY)]);
     await c.query(`insert into ops.solicitud_atencion_historial (solicitud_id, accion, estado_nuevo, nota_operativa, actor) values ($1,'recibida','pendiente_asignacion',$2,$3)`, [
       id,
       `Verificación: ${v.verificacion}`,
@@ -159,7 +162,7 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
     await audit(c, user, 'abierta.solicitud_recibida', 'solicitud_atencion', id, { canal, verificacion: v.verificacion }, ip);
     await notificar(c, ctx.bus, await usuariosPorRol(c, 'coordinacion'), { tipo: 'abierta', titulo: `Nueva solicitud de atención ${codigo}`, cuerpo: v.verificacion === 'verificado_maestra' ? 'Vinculación verificada en base maestra.' : 'Requiere verificación de vínculo institucional.', enlace: '/atencion-abierta' }, user?.id ?? null);
     await ctx.bus.emit(c, { tipo: 'abierta.solicitud', topic: 'abierta', actor: user?.id ?? null, texto: 'Se recibió una nueva solicitud de atención abierta.' });
-    return { id, codigo };
+    return { id, codigo, clave };
   }
 
   app.get('/api/publico/config', async () => ({
@@ -174,11 +177,40 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
     const mensaje = 'Recibimos su solicitud. Un integrante de la brigada le contactará por el medio indicado. Si se trata de una emergencia, llame al ECU 911.';
     if (typeof raw.sitio_web === 'string' && raw.sitio_web.trim()) {
       // Campo trampa para automatizaciones: se responde igual pero no se registra.
-      return { codigo: `SA-${Math.floor(1000 + Math.random() * 8999)}`, mensaje };
+      return { codigo: `SA-${Math.floor(1000 + Math.random() * 8999)}`, clave: nuevaClaveConsulta(), mensaje };
     }
     const b = parse(solicitudSchema, raw);
     const r = await tx(db, (c) => crearSolicitud(c, b, 'formulario_publico', null, req.ip));
-    return { codigo: r.codigo, mensaje };
+    return { codigo: r.codigo, clave: r.clave, mensaje };
+  });
+
+  /**
+   * Consulta pública del estado (sin cuenta) con el código y la clave entregados al enviar el formulario.
+   * Devuelve solo la etapa del trámite y el día de la última actualización: ni nombres, ni contacto, ni profesional,
+   * ni horario, ni motivo. Cualquier dato incorrecto da la misma respuesta genérica (no revela si el código existe)
+   * y la comparación es en tiempo constante. Límite estricto de intentos por dirección.
+   */
+  const ETAPA_PUBLICA: Record<string, string> = {
+    pendiente_asignacion: 'recibida',
+    asignada: 'asignada',
+    programada: 'programada',
+    atendida: 'atendida',
+    cerrada: 'cerrada',
+    cancelada: 'cerrada',
+  };
+  const HASH_FICTICIO = sha256('sin-solicitud');
+  app.post('/api/publico/solicitud-estado', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req) => {
+    const b = parse(z.object({ codigo: z.string().trim().max(20), clave: z.string().trim().max(40) }), req.body);
+    const codigo = b.codigo.toUpperCase().replace(/\s+/g, '');
+    const clave = normalizarClaveConsulta(b.clave);
+    const s = /^SA-\d{1,8}$/.test(codigo) && clave.length === 10
+      ? (await db.query(`select id, estado, clave_consulta_hash, updated_at from ops.solicitudes_atencion where codigo = $1 and canal = 'formulario_publico'`, [codigo])).rows[0]
+      : undefined;
+    const esperado = s?.clave_consulta_hash ?? HASH_FICTICIO;
+    const ok = igualesTiempoConstante(hashClaveConsulta(clave || 'X', ctx.cfg.DATA_ENCRYPTION_KEY), esperado) && !!s?.clave_consulta_hash;
+    if (!ok) throw new HttpError(404, 'No encontramos una solicitud con ese código y esa clave. Revise que estén bien escritos.', 'consulta_no_encontrada');
+    await audit(db, null, 'abierta.estado_consultado', 'solicitud_atencion', s.id, {}, req.ip);
+    return { codigo, etapa: ETAPA_PUBLICA[s.estado] ?? 'recibida', actualizada: new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Galapagos' }).format(new Date(s.updated_at)) };
   });
 
   app.post('/api/atencion-abierta', { preHandler: requirePerm('abierta.registrar') }, async (req) => {

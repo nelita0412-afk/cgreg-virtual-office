@@ -13,8 +13,15 @@ import { ESTADO_ATENCION_LABEL, ESPECIALIDAD_LABEL, TZ_INSTITUCIONAL, type Estad
 
 export { tonoAtencion } from '../lib/tonos';
 import { tonoAtencion } from '../lib/tonos';
+import { useEsMovil } from '../lib/pwa';
+import AgendaMovil from './AgendaMovil';
 
+/** En el teléfono, agenda por día con gestos; en escritorio, la cuadrícula semanal. */
 export default function Agenda() {
+  return useEsMovil(767) ? <AgendaMovil /> : <AgendaSemana />;
+}
+
+function AgendaSemana() {
   const { me } = useAuth();
   const [params, setParams] = useSearchParams();
   const esCoord = me?.rol === 'coordinacion';

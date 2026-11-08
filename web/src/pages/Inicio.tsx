@@ -81,7 +81,7 @@ function MiEstado() {
   };
   return (
     <div className="mt-3 flex flex-col gap-2">
-      <div className="flex gap-1.5 rounded-2xl border p-1" role="radiogroup" aria-label="Mi estado en la oficina" style={{ borderColor: 'var(--line)', background: 'rgba(3,11,31,.55)' }}>
+      <div className="flex gap-1.5 rounded-2xl border p-1" role="radiogroup" aria-label="Mi estado en la oficina" style={{ borderColor: 'var(--line)', background: 'rgba(255,255,255,.6)' }}>
         {ESTADOS_MANUALES.map((e) => {
           const activo = actual === e;
           return (
@@ -91,7 +91,7 @@ function MiEstado() {
               aria-checked={activo}
               onClick={() => cambiar(e)}
               disabled={!!automatico}
-              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-[13px] font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.97] disabled:opacity-60 ${activo ? 'bg-white/10 text-white' : 'text-slate-300'}`}
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-[13px] font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.97] disabled:opacity-60 ${activo ? 'bg-nieve text-white shadow-glow' : 'text-slate-300'}`}
             >
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: ESTADO_PRESENCIA_COLOR[e] }} aria-hidden />
               {ETIQUETA_CORTA[e] ?? ESTADO_PRESENCIA_LABEL[e]}
@@ -182,7 +182,7 @@ function Accesos({ items }: { items: { to?: string; onClick?: () => void; label:
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {items.map((i) => {
         const cls = 'flex min-h-14 items-center gap-2.5 rounded-2xl border px-3 text-sm font-medium text-slate-100 transition-[background-color,transform] duration-150 hover:bg-white/[0.05] active:scale-[0.97]';
-        const st = { borderColor: 'var(--line)', background: 'rgba(11,29,66,.55)' };
+        const st = { borderColor: 'var(--line)', background: 'var(--panel)' };
         const inner = <><span className="text-cyan-300" aria-hidden>{i.icono}</span><span className="leading-tight">{i.label}</span></>;
         return i.to ? <Link key={i.label} to={i.to} className={cls} style={st}>{inner}</Link> : <button key={i.label} onClick={i.onClick} className={cls} style={st}>{inner}</button>;
       })}
@@ -321,20 +321,20 @@ function ProximaCita({ c }: { c: any }) {
     <Link
       to={`/atenciones/${c.id}`}
       className="group relative flex flex-col gap-3 overflow-hidden rounded-3xl border p-5 transition-transform duration-150 active:scale-[0.99]"
-      style={{ borderColor: 'rgba(79,224,240,.35)', background: 'linear-gradient(160deg, rgba(14,116,144,.35), rgba(11,29,66,.9) 60%)' }}
+      style={{ borderColor: 'transparent', background: 'linear-gradient(150deg, #78958A 0%, #4D665C 100%)', color: '#F5F3EC' }}
       aria-label={`Próxima atención: ${c.servidor_nombre}, ${cuando}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-cyan-200">{enCurso ? 'Atención en curso' : 'Próxima atención'}</span>
-        <span className="rounded-full bg-cyan-300/15 px-3 py-1 text-sm font-semibold tabular-nums text-cyan-100">{cuando}</span>
+        <span className="text-sm font-medium text-eucalipto">{enCurso ? 'Atención en curso' : 'Próxima atención'}</span>
+        <span className="rounded-full bg-marfil/15 px-3 py-1 text-sm font-semibold tabular-nums text-marfil">{cuando}</span>
       </div>
       <div>
-        <div className="text-[22px] font-bold leading-tight text-white">{c.servidor_nombre}</div>
-        <div className="mt-1 text-sm muted">
+        <div className="text-[22px] font-bold leading-tight text-marfil">{c.servidor_nombre}</div>
+        <div className="mt-1 text-sm text-eucalipto/90">
           {fHora(c.inicio)}–{fHora(c.fin)} · {c.codigo}
         </div>
       </div>
-      <span className="flex items-center gap-1 text-sm font-medium text-cyan-200">
+      <span className="flex items-center gap-1 text-sm font-medium text-arena-200">
         Abrir la atención <ChevronRight size={16} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
       </span>
     </Link>

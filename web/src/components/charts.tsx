@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 /** Gráficos SVG livianos. Colores validados para el fondo azul marino (paleta categórica oscura). */
-export const SERIES = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
-export const STATUS = { good: '#0ca30c', warning: '#fab219', serious: '#ec835a', critical: '#d03b3b' };
+export const SERIES = ['#78958A', '#C5A989', '#4D665C', '#B08F6C', '#9A7FA8', '#5E9C76', '#C27D62', '#7A8C83'];
+export const STATUS = { good: '#3F8F5F', warning: '#B7791F', serious: '#C0612B', critical: '#B4423A' };
 
 interface Tip {
   x: number;
@@ -35,7 +35,7 @@ export function Columnas({ datos, etiqueta, color = SERIES[0], alto = 180 }: { d
           const y = pad.t + h - (t / max) * h;
           return (
             <g key={t}>
-              <line x1={pad.l} x2={W - pad.r} y1={y} y2={y} stroke="rgba(148,163,184,.15)" />
+              <line x1={pad.l} x2={W - pad.r} y1={y} y2={y} stroke="rgba(52,72,63,.10)" />
               <text x={pad.l - 6} y={y + 3} textAnchor="end" className="fill-slate-400 text-[10px]">{t}</text>
             </g>
           );

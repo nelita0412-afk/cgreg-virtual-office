@@ -112,3 +112,14 @@ Pausa (manual) ─────► «En pausa» → zona de pausa
 - **Listas táctiles** (`components/Tarjetas.tsx`): atenciones, seguimientos, solicitudes, derivaciones y servidores se muestran como tarjetas en el teléfono y como tabla en escritorio.
 - **Notificaciones push** (`server/push.ts`, migración `005_push.sql`): Web Push con claves VAPID (`npm run push:claves`). Sin claves, siguen las notificaciones dentro de la app. El aviso sale después del commit desde el bus de eventos y lleva solo el título breve y el enlace interno (nunca el cuerpo ni datos clínicos, porque puede verse en la pantalla bloqueada). Al cerrar sesión se anula la suscripción del dispositivo; las suscripciones caducadas (404/410) se eliminan solas.
 - **Pruebas**: `tests/app-movil.test.ts` y `npm run e2e:movil` (iPhone emulado).
+
+## Segunda evolución 2.0
+
+- **Tema**: `tailwind.config.js` redefine las familias heredadas del tema oscuro (`white`, `slate`, `cyan`, `sky`, `blue`, colores de estado) hacia la paleta clara, y añade nombres semánticos (`salvia`, `eucalipto`, `marfil`, `arena`, `profundo`, `nieve`). Las variables de `web/src/styles.css` (`--bg`, `--ink`, `--accent`, `--sand`, `--ease-out`, `--ease-drawer`) son la fuente para estilos en línea.
+- **Animaciones**: solo `transform`/`opacity`, curvas de salida fuertes, menos de 300 ms; las entradas usan `animation-fill-mode: backwards` para no dejar contextos de apilamiento que atrapen diálogos fijos.
+- **Gestos**: `lib/gestos.ts` (`useDeslizarHorizontal`) toma el gesto solo si es claramente horizontal y deja libre el desplazamiento vertical; `components/HojaInferior.tsx` se monta en un portal, se cierra arrastrando, con Escape o tocando el fondo, y devuelve el foco.
+- **Registro clínico por pasos**: usa el mismo `PUT /api/atenciones/:id/nota` (cifrado y versionado). El borrador vive solo en memoria.
+- **Consulta pública del estado**: `POST /api/publico/solicitud-estado` (10 intentos/15 min por dirección). La clave (≈48 bits, alfabeto sin caracteres ambiguos) se guarda como HMAC-SHA256 con un secreto del servidor y se compara en tiempo constante; códigos inexistentes y claves erróneas dan la misma respuesta. Solo el formulario público entrega clave.
+- **Push de prueba**: `POST /api/push/prueba` (5 cada 10 min) envía solo a las suscripciones de quien lo pide.
+- **Pruebas E2E del push**: el modo *headless shell* de Playwright niega las notificaciones; `e2e/app-movil.mjs` usa Chromium completo sin ventana y entrega el mensaje al service worker por CDP.
+

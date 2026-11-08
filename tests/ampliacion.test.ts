@@ -207,7 +207,8 @@ describe('3B. Atención abierta (sin valoración previa)', () => {
   it('si no aparece en la base, queda pendiente de verificación (no se rechaza) y la respuesta es idéntica', async () => {
     const r = await publico('POST', '/api/publico/solicitud-atencion', { nombre: 'Jorge Nuevo Ingreso', contacto: 'jorge@correo.ec', preferencia: 'no_sabe', acepta_aviso: true });
     expect(r.status).toBe(200);
-    expect(Object.keys(r.body).sort()).toEqual(['codigo', 'mensaje']);
+    expect(Object.keys(r.body).sort()).toEqual(['clave', 'codigo', 'mensaje']); // misma forma exista o no la persona
+    expect(r.body.clave).toMatch(/^[A-Z0-9]{5}-[A-Z0-9]{5}$/);
     const row = (await b.ctx.db.query(`select * from ops.solicitudes_atencion where codigo = $1`, [r.body.codigo])).rows[0];
     expect(row).toMatchObject({ verificacion: 'pendiente_verificacion', servidor_id: null, estado: 'pendiente_asignacion' });
     saDesconocida = row.id;

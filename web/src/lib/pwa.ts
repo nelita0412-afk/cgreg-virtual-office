@@ -145,7 +145,13 @@ export function usePush() {
     setEstado('inactivo');
   }, [registro]);
 
-  return { estado: estadoPush, activar, desactivar };
+  /** Pide al servidor un aviso de prueba para las suscripciones de esta cuenta. */
+  const probar = useCallback(async () => {
+    const r = await api.post<{ enviadas: number; fallidas: number }>('/api/push/prueba');
+    return r;
+  }, []);
+
+  return { estado: estadoPush, activar, desactivar, probar };
 }
 
 /** Al cerrar sesión, el teléfono deja de recibir avisos de esa cuenta. */

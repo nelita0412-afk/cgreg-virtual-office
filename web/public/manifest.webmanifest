@@ -10,8 +10,8 @@
   "orientation": "any",
   "lang": "es-EC",
   "dir": "ltr",
-  "background_color": "#061633",
-  "theme_color": "#071a3f",
+  "background_color": "#F5F3EC",
+  "theme_color": "#F5F3EC",
   "categories": ["medical", "productivity", "government"],
   "icons": [
     { "src": "/icons/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

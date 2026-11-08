@@ -39,6 +39,27 @@ export function pushRoutes(app: FastifyInstance, ctx: AppCtx) {
     return { ok: true };
   });
 
+  /**
+   * Aviso de prueba: lo pide la persona desde Ajustes para comprobar que su teléfono recibe notificaciones.
+   * Va solo a sus propias suscripciones y no lleva ningún dato institucional.
+   */
+  app.post('/api/push/prueba', { preHandler: requireAuth, config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (req, rep) => {
+    if (!activo) return rep.code(503).send({ error: 'Las notificaciones push no están configuradas en este servidor.', code: 'push_no_configurado' });
+    const subs = await db.query<{ id: string; endpoint: string; p256dh: string; auth: string }>(
+      `select id, endpoint, p256dh, auth from ops.push_suscripciones where usuario_id = $1`,
+      [u(req).id],
+    );
+    if (!subs.rows.length) return rep.code(409).send({ error: 'Este usuario no tiene dispositivos con notificaciones activadas.', code: 'sin_suscripcion' });
+    const cuerpo = JSON.stringify({ titulo: 'Prueba: las notificaciones funcionan en este dispositivo', enlace: '/inicio', tag: 'prueba' });
+    const r = await Promise.allSettled(subs.rows.map((s) => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, cuerpo, { TTL: 600, urgency: 'high' })));
+    for (const [i, x] of r.entries()) {
+      const code = x.status === 'rejected' ? (x.reason as { statusCode?: number })?.statusCode : undefined;
+      if (code === 404 || code === 410) await db.query(`delete from ops.push_suscripciones where id = $1`, [subs.rows[i].id]);
+    }
+    const enviadas = r.filter((x) => x.status === 'fulfilled').length;
+    return { enviadas, fallidas: r.length - enviadas };
+  });
+
   if (!activo) return;
   bus.on(async (ev: EventRow) => {
     if (ev.tipo !== 'notificacion' || !ev.destinatarios?.length) return;

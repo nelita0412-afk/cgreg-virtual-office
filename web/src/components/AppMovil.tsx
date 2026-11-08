@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { BellRing, Download, LogOut, MapPin, MoreHorizontal, RefreshCw, Share, Smartphone, WifiOff, X, type LucideIcon } from 'lucide-react';
+import { BellRing, Download, LogOut, Send, MapPin, MoreHorizontal, RefreshCw, Share, Smartphone, WifiOff, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useActualizacion, useEnLinea, useInstalacion, usePush } from '../lib/pwa';
 import { can, type Permiso } from '@shared/permissions';
@@ -33,7 +33,7 @@ export function BarraInferior({ items, onSalir }: { items: ItemNav[]; onSalir: (
     <>
       <nav
         className="fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
-        style={{ borderColor: 'var(--line)', background: 'rgba(5,16,40,.94)', backdropFilter: 'blur(16px)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        style={{ borderColor: 'var(--line)', background: 'rgba(250,249,244,.92)', backdropFilter: 'saturate(1.4) blur(18px)', paddingBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Navegación de la app"
       >
         <ul className="mx-auto flex max-w-xl">
@@ -88,7 +88,7 @@ function HojaMas({ abierta, onCerrar, items, onSalir }: { abierta: boolean; onCe
   }, [abierta, onCerrar]);
   return (
     <div className={`fixed inset-0 z-50 lg:hidden ${abierta ? '' : 'pointer-events-none'}`} aria-hidden={!abierta}>
-      <div className={`absolute inset-0 bg-black/60 transition-opacity duration-200 ${abierta ? 'opacity-100' : 'opacity-0'}`} onClick={onCerrar} />
+      <div className={`absolute inset-0 bg-profundo-950/35 transition-opacity duration-200 ${abierta ? 'opacity-100' : 'opacity-0'}`} onClick={onCerrar} />
       <div
         ref={ref}
         tabIndex={-1}
@@ -135,9 +135,19 @@ function HojaMas({ abierta, onCerrar, items, onSalir }: { abierta: boolean; onCe
   );
 }
 
-function AjustesDispositivo() {
+export function AjustesDispositivo() {
   const push = usePush();
   const inst = useInstalacion();
+  const [prueba, setPrueba] = useState<{ tipo: 'enviando' | 'ok' | 'error'; texto?: string } | null>(null);
+  const probar = async () => {
+    setPrueba({ tipo: 'enviando' });
+    try {
+      const r = await push.probar();
+      setPrueba(r.enviadas ? { tipo: 'ok', texto: 'Aviso enviado. Debería verlo en unos segundos.' } : { tipo: 'error', texto: 'El servicio de notificaciones del teléfono no aceptó el aviso. Desactive y vuelva a activar.' });
+    } catch (e) {
+      setPrueba({ tipo: 'error', texto: e instanceof Error ? e.message : 'No se pudo enviar la prueba.' });
+    }
+  };
   return (
     <div className="flex flex-col divide-y rounded-2xl border" style={{ borderColor: 'var(--line)' }}>
       {!inst.instalada && (inst.puedeInstalar || inst.requiereGuiaIos) && (
@@ -157,6 +167,24 @@ function AjustesDispositivo() {
           )}
         </div>
       )}
+      {push.estado === 'activo' && (
+        <div className="flex flex-col gap-2 p-3" style={{ borderColor: 'var(--line)' }}>
+          <button className="btn-ghost btn-sm min-h-10 self-start" onClick={() => void probar()} disabled={prueba?.tipo === 'enviando'}>
+            <Send size={14} aria-hidden /> {prueba?.tipo === 'enviando' ? 'Enviando…' : 'Enviar aviso de prueba'}
+          </button>
+          {prueba?.texto && (
+            <p role="status" className={`text-xs ${prueba.tipo === 'ok' ? 'text-emerald-300' : 'text-amber-200'}`}>
+              {prueba.texto}
+            </p>
+          )}
+        </div>
+      )}
+      {push.estado === 'no_disponible' && (
+        <p className="p-3 text-xs muted" style={{ borderColor: 'var(--line)' }}>Este navegador no admite notificaciones push. En iPhone, instale la app en la pantalla de inicio (iOS 16.4 o superior).</p>
+      )}
+      {push.estado === 'no_configurado' && (
+        <p className="p-3 text-xs muted" style={{ borderColor: 'var(--line)' }}>Las notificaciones push aún no están configuradas en el servidor de la institución.</p>
+      )}
     </div>
   );
 }
@@ -168,7 +196,7 @@ export function AvisoSinConexion() {
   const enLinea = useEnLinea();
   if (enLinea) return null;
   return (
-    <div role="status" className="flex items-center gap-2 bg-amber-500/15 px-4 py-2 text-[13px] text-amber-100" style={{ borderBottom: '1px solid rgba(251,191,36,.3)' }}>
+    <div role="status" className="flex items-center gap-2 bg-amber-500/15 px-4 py-2 text-[13px] text-amber-100" style={{ borderBottom: '1px solid rgba(183,121,31,.25)' }}>
       <WifiOff size={16} className="shrink-0" aria-hidden />
       Sin conexión. Lo que ve puede no estar actualizado; para guardar cambios espere a recuperar la señal.
     </div>
@@ -179,7 +207,7 @@ export function AvisoActualizacion() {
   const { disponible, aplicar } = useActualizacion();
   if (!disponible) return null;
   return (
-    <div role="status" className="fixed inset-x-3 bottom-[calc(76px+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border p-3 shadow-2xl lg:bottom-6" style={{ borderColor: 'rgba(79,224,240,.4)', background: 'var(--panel-solid)' }}>
+    <div role="status" className="fixed inset-x-3 bottom-[calc(76px+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border p-3 shadow-2xl lg:bottom-6" style={{ borderColor: 'var(--line-strong)', background: 'var(--panel-solid)' }}>
       <RefreshCw size={20} className="shrink-0 text-cyan-300" aria-hidden />
       <span className="flex-1 text-sm text-white">Hay una versión nueva de la app.</span>
       <button className="btn-primary btn-sm min-h-10" onClick={aplicar}>Actualizar</button>
@@ -238,7 +266,7 @@ export function AvisoNotificacionesPush() {
     }
   };
   return (
-    <section className="relative flex flex-col gap-3 rounded-2xl border p-4 pr-12" style={{ borderColor: 'rgba(79,224,240,.3)', background: 'rgba(14,116,144,.14)' }} aria-label="Configurar la app en este teléfono">
+    <section className="relative flex flex-col gap-3 rounded-2xl border p-4 pr-12" style={{ borderColor: 'rgba(120,149,138,.35)', background: 'var(--surface)' }} aria-label="Configurar la app en este teléfono">
       <button onClick={cerrar} className="absolute right-1.5 top-1.5 grid h-10 w-10 place-items-center rounded-full hover:bg-white/5" aria-label="Ocultar"><X size={18} /></button>
       {pedirInstalar && <Instalar />}
       {pedirPush && (

@@ -27,11 +27,11 @@ export interface RoomDef {
 export const PISO = { w: 64, d: 40 };
 
 export const ROOMS: RoomDef[] = [
-  { id: 'debriefing', nombre: 'Sala de Debriefing', center: [-19, -13.5], size: [18, 12], color: '#38bdf8', suelo: '#c9b79c', ruta: '/debriefing', descripcion: 'Acompañamiento emocional a profesionales desplegados en territorio.', vista: { target: [-19, -12.5], zoom: 2.6 } },
-  { id: 'capacitacion', nombre: 'Centro de Capacitación DECE', center: [1, -13.5], size: [19, 12], color: '#22d3ee', suelo: '#b8c4d2', ruta: '/capacitacion', descripcion: 'Talleres de primeros auxilios psicológicos, señales de alerta y rutas de apoyo.', vista: { target: [1, -12.5], zoom: 2.6 } },
-  { id: 'psiquiatria', nombre: 'Psiquiatría', sub: 'Derivación', center: [21.5, -13.5], size: [17, 12], color: '#a855f7', suelo: '#cbbfd9', ruta: '/derivaciones', descripcion: 'Valoración especializada mediante derivación (Dr. Diego Estrella).', vista: { target: [21.5, -12.5], zoom: 2.6 } },
-  { id: 'consultorios', nombre: 'Consultorios de Psicología', center: [-21, -0.5], size: [20, 11], color: '#60a5fa', suelo: '#d6dde8', ruta: '/atenciones', descripcion: 'Seis consultorios individuales para la atención psicológica.', vista: { target: [-21, -0.5], zoom: 2.6 } },
-  { id: 'telemedicina', nombre: 'Telemedicina', center: [22.5, -0.5], size: [17, 11], color: '#10b981', suelo: '#c8dccf', ruta: '/atenciones', descripcion: 'Consultorio médico de teleconsulta (Dr. Demetrio Magallanes).', vista: { target: [22.5, -0.5], zoom: 2.6 } },
+  { id: 'debriefing', nombre: 'Sala de Debriefing', center: [-19, -13.5], size: [18, 12], color: '#B08F6C', suelo: '#c9b79c', ruta: '/debriefing', descripcion: 'Acompañamiento emocional a profesionales desplegados en territorio.', vista: { target: [-19, -12.5], zoom: 2.6 } },
+  { id: 'capacitacion', nombre: 'Centro de Capacitación DECE', center: [1, -13.5], size: [19, 12], color: '#78958A', suelo: '#c6d0c4', ruta: '/capacitacion', descripcion: 'Talleres de primeros auxilios psicológicos, señales de alerta y rutas de apoyo.', vista: { target: [1, -12.5], zoom: 2.6 } },
+  { id: 'psiquiatria', nombre: 'Psiquiatría', sub: 'Derivación', center: [21.5, -13.5], size: [17, 12], color: '#8A6FA8', suelo: '#cbbfd9', ruta: '/derivaciones', descripcion: 'Valoración especializada mediante derivación (Dr. Diego Estrella).', vista: { target: [21.5, -12.5], zoom: 2.6 } },
+  { id: 'consultorios', nombre: 'Consultorios de Psicología', center: [-21, -0.5], size: [20, 11], color: '#607D72', suelo: '#dcdfd5', ruta: '/atenciones', descripcion: 'Seis consultorios individuales para la atención psicológica.', vista: { target: [-21, -0.5], zoom: 2.6 } },
+  { id: 'telemedicina', nombre: 'Telemedicina', center: [22.5, -0.5], size: [17, 11], color: '#3F8F5F', suelo: '#c8dccf', ruta: '/atenciones', descripcion: 'Consultorio médico de teleconsulta (Dr. Demetrio Magallanes).', vista: { target: [22.5, -0.5], zoom: 2.6 } },
 ];
 
 export const ZONES_ABIERTAS = {

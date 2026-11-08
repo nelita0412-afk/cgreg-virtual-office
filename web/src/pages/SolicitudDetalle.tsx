@@ -70,7 +70,7 @@ export default function SolicitudDetalle() {
         subtitle={<>{TIPO_SOLICITUD_LABEL[sol.tipo as keyof typeof TIPO_SOLICITUD_LABEL] ?? sol.tipo} · {sol.solicitante_nombre} ({ROL_LABEL[sol.solicitante_rol as Rol]}) · {fFechaHora(sol.created_at)}</>}
         actions={<><Badge tono={tonoPrioridad[sol.prioridad]}>{PRIORIDAD_LABEL[sol.prioridad as keyof typeof PRIORIDAD_LABEL]}</Badge><Badge tono={tonoSolicitud[sol.estado as EstadoSolicitud]}>{ESTADO_SOLICITUD_LABEL[sol.estado as EstadoSolicitud]}</Badge></>}
       />
-      <div className="grid gap-3 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-3 lg:grid-cols-[1fr_380px] [&>*]:min-w-0">
         <div className="space-y-3">
           <Card title="Detalle">
             <dl className="grid gap-3 text-sm sm:grid-cols-2">

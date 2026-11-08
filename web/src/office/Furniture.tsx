@@ -199,7 +199,7 @@ export function usePantallas() {
     g.fillRect(0, 0, w, h);
     g.fillStyle = '#123170';
     g.fillRect(0, 0, w, 26);
-    g.fillStyle = '#22d3ee';
+    g.fillStyle = '#C5A989';
     g.fillRect(10, 8, 60, 10);
     const r = rnd(9);
     for (let i = 0; i < 5; i++) {

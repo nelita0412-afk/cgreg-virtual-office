@@ -46,7 +46,7 @@ export default function DerivacionDetalle() {
         subtitle={<>Servidor: {d.servidor_nombre} · Derivante: {d.derivante_nombre} · Especialista: {d.especialista_nombre}</>}
         actions={<><Badge tono={tonoPrioridad[d.prioridad]}>Prioridad {PRIORIDAD_LABEL[d.prioridad as keyof typeof PRIORIDAD_LABEL].toLowerCase()}</Badge><Badge tono={tonoDerivacion[d.estado as EstadoDerivacion]}>{ESTADO_DERIVACION_LABEL[d.estado as EstadoDerivacion]}</Badge></>}
       />
-      <div className="grid gap-3 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-3 lg:grid-cols-[1fr_340px] [&>*]:min-w-0">
         <div className="space-y-3">
           {clinico ? (
             <Card title={<span className="flex items-center gap-2"><Lock size={16} className="text-emerald-300" /> Información clínica (acceso restringido)</span>}>

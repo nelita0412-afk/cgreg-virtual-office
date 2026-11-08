@@ -8,7 +8,7 @@ import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import Login, { CambiarPassword } from './pages/Login';
 import Oficina from './pages/Oficina';
-import { SolicitarAtencion, FirmarConsentimiento } from './pages/Publico';
+import { SolicitarAtencion, FirmarConsentimiento, ConsultarEstado } from './pages/Publico';
 import { can, type Permiso } from '@shared/permissions';
 import { ApiError } from './lib/api';
 import { registrarServiceWorker, useEnLinea, useEsMovil } from './lib/pwa';
@@ -83,10 +83,11 @@ function App() {
   // Páginas públicas (sin cuenta): solicitud de atención abierta y aceptación electrónica del consentimiento.
   const path = window.location.pathname;
   const movil = useEsMovil();
-  if (path.startsWith('/solicitar-atencion') || path.startsWith('/consentimiento/') || path === '/servidor') {
+  if (path.startsWith('/solicitar-atencion') || path.startsWith('/consentimiento/') || path === '/servidor' || path === '/servidor/estado') {
     return (
       <Routes>
         <Route path="/servidor" element={<Suspense fallback={<Spinner />}><PortalServidor /></Suspense>} />
+        <Route path="/servidor/estado" element={<ConsultarEstado />} />
         <Route path="/solicitar-atencion" element={<SolicitarAtencion />} />
         <Route path="/consentimiento/:token" element={<FirmarConsentimiento />} />
       </Routes>

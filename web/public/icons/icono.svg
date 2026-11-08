@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b2a63"/><stop offset="1" stop-color="#061633"/></linearGradient>
-    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient>
+    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#78958A"/><stop offset="1" stop-color="#4D665C"/></linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5F3EC"/><stop offset="1" stop-color="#DCE8E1"/></linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#f)"/>
-  <circle cx="352" cy="170" r="34" fill="#e8c46a"/>
+  <circle cx="352" cy="170" r="34" fill="#C5A989"/>
   <path d="M120 330 L230 196 L300 282 L338 240 L398 330" fill="none" stroke="url(#c)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M112 384 C170 360 214 404 268 384 C322 364 358 404 404 384" fill="none" stroke="#38bdf8" stroke-opacity=".55" stroke-width="20" stroke-linecap="round"/>
+  <path d="M112 384 C170 360 214 404 268 384 C322 364 358 404 404 384" fill="none" stroke="#DCE8E1" stroke-opacity=".55" stroke-width="20" stroke-linecap="round"/>
 </svg>
