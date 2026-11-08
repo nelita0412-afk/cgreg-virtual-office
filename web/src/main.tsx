@@ -1,4 +1,4 @@
-import { lazy, StrictMode, Suspense } from 'react';
+import { lazy, StrictMode, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,7 +11,8 @@ import Oficina from './pages/Oficina';
 import { SolicitarAtencion, FirmarConsentimiento } from './pages/Publico';
 import { can, type Permiso } from '@shared/permissions';
 import { ApiError } from './lib/api';
-import { registrarServiceWorker, useEsMovil } from './lib/pwa';
+import { registrarServiceWorker, useEnLinea, useEsMovil } from './lib/pwa';
+import { WifiOff } from 'lucide-react';
 
 const Comando = lazy(() => import('./pages/Comando'));
 const Equipo = lazy(() => import('./pages/Equipo'));
@@ -57,8 +58,28 @@ function Guard({ perm, children }: { perm: Permiso[]; children: React.ReactNode 
   return <>{children}</>;
 }
 
+/** Sin señal al abrir la app: explica qué pasa y vuelve a intentar sola cuando el teléfono recupera la conexión. */
+function PantallaSinConexion({ reintentar }: { reintentar: () => void }) {
+  const enLinea = useEnLinea();
+  useEffect(() => {
+    if (enLinea) reintentar();
+  }, [enLinea, reintentar]);
+  return (
+    <div className="grid min-h-full place-items-center p-6" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
+      <div className="flex max-w-sm flex-col gap-4">
+        <WifiOff size={36} className="text-amber-300" aria-hidden />
+        <h1 className="text-2xl font-bold text-white">Sin conexión a internet</h1>
+        <p className="muted">La app necesita conexión para mostrar información. Por seguridad, los datos de atenciones e historias clínicas no se guardan en el teléfono.</p>
+        <p className="text-sm faint">Volverá a intentarlo sola cuando regrese la señal.</p>
+        <button className="btn-primary min-h-12" onClick={reintentar}>Reintentar ahora</button>
+        <p className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">Si usted o alguien cercano está en peligro, llame de inmediato al <a href="tel:911" className="font-semibold underline">ECU 911</a>.</p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const { me, loading } = useAuth();
+  const { me, loading, sinConexion, refetch } = useAuth();
   // Páginas públicas (sin cuenta): solicitud de atención abierta y aceptación electrónica del consentimiento.
   const path = window.location.pathname;
   const movil = useEsMovil();
@@ -72,6 +93,7 @@ function App() {
     );
   }
   if (loading) return <Spinner label="Verificando sesión…" />;
+  if (sinConexion) return <PantallaSinConexion reintentar={refetch} />;
   if (!me) return <Login />;
   if (me.debe_cambiar_password) return <CambiarPassword obligatorio />;
   const g = (perm: Permiso[], el: React.ReactNode) => (

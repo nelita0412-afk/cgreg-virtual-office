@@ -44,9 +44,12 @@ export function registrarServiceWorker() {
   navigator.serviceWorker.addEventListener('message', (e) => {
     if (e.data?.tipo === 'navegar' && typeof e.data.enlace === 'string' && e.data.enlace.startsWith('/')) navegarDesdeSw?.(e.data.enlace);
   });
+  // Solo se recarga al reemplazar una versión anterior (botón «Actualizar»). En la primera visita el service
+  // worker toma el control sin recargar: recargar ahí interrumpiría a quien está escribiendo (p. ej. al ingresar).
+  const habiaVersionAnterior = !!navigator.serviceWorker.controller;
   let recargando = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (recargando) return;
+    if (recargando || !habiaVersionAnterior) return;
     recargando = true;
     window.location.reload();
   });

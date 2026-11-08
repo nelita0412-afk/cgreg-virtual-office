@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, onAuthError } from './api';
+import { api, esErrorDeRed, onAuthError } from './api';
 import { realtime } from './realtime';
 import { can, type Permiso } from '@shared/permissions';
 import type { Rol, Especialidad } from '@shared/domain';
@@ -17,12 +17,14 @@ export interface Me {
   emergencia_texto: string;
 }
 
-const Ctx = createContext<{ me: Me | null; loading: boolean; refetch: () => void }>({ me: null, loading: true, refetch: () => {} });
+const Ctx = createContext<{ me: Me | null; loading: boolean; sinConexion: boolean; refetch: () => void }>({ me: null, loading: true, sinConexion: false, refetch: () => {} });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['me'], queryFn: () => api.get<Me | null>('/api/auth/me'), retry: false, staleTime: 60_000 });
   const me = q.data ?? null;
+  // Sin señal al abrir la app no se sabe si hay sesión: se informa la falta de conexión en lugar de pedir ingresar.
+  const sinConexion = !q.data && (esErrorDeRed(q.error) || q.fetchStatus === 'paused');
 
   useEffect(() => onAuthError(() => qc.setQueryData<Me | null>(['me'], null)), [qc]);
   useEffect(() => {
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [me]);
 
-  return <Ctx.Provider value={{ me, loading: q.isLoading, refetch: () => q.refetch() }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ me, loading: q.isLoading, sinConexion, refetch: () => q.refetch() }}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);

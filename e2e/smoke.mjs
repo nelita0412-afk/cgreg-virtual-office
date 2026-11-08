@@ -160,7 +160,8 @@ try {
   await mp.fill('input[type=email]', 'coord@prueba.local');
   await mp.fill('input[type=password]', PASS);
   await mp.click('button:has-text("Ingresar")');
-  await mp.waitForSelector('[aria-label="Indicadores en tiempo real"]');
+  // En el teléfono la portada es «Mi día» con navegación inferior (la oficina 3D queda en /oficina).
+  await mp.waitForSelector('nav[aria-label="Navegación de la app"]');
   await sleep(1500);
   const overflow = await mp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   check(!overflow, 'Sin desplazamiento horizontal en móvil');

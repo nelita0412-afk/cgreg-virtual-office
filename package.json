@@ -18,9 +18,10 @@
     "user:create": "tsx --env-file=.env server/cli/create-user.ts",
     "sheets:check": "tsx --env-file=.env server/cli/sheets-check.ts",
     "test": "vitest run",
-    "e2e": "node e2e/smoke.mjs && node e2e/movimiento.mjs",
+    "e2e": "node e2e/smoke.mjs && node e2e/movimiento.mjs && node e2e/app-movil.mjs",
     "e2e:movimiento": "node e2e/movimiento.mjs",
-    "push:claves": "tsx server/cli/push-claves.ts"
+    "push:claves": "tsx server/cli/push-claves.ts",
+    "e2e:movil": "node e2e/app-movil.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.1",
