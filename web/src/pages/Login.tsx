@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { HeartHandshake, ShieldCheck } from 'lucide-react';
+import { Instalar } from '../components/AppMovil';
 import { api } from '../lib/api';
 import { ErrorMsg, Field, useSubmit } from '../components/ui';
 
@@ -13,10 +15,10 @@ export default function Login() {
     () => qc.invalidateQueries({ queryKey: ['me'] }),
   );
   return (
-    <div className="grid min-h-full place-items-center p-4">
+    <div className="grid min-h-full place-items-center p-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <div className="w-full max-w-md">
         <div className="mb-6 flex items-center gap-3">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-700 text-lg font-black shadow-glow">CG</div>
+          <img src="/icons/icono-192.png" alt="" className="h-14 w-14 shrink-0 rounded-2xl shadow-glow" />
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-cyan-200">Consejo de Gobierno del Régimen Especial de Galápagos</div>
             <h1 className="text-2xl font-bold tracking-tight">CGREG Virtual Office</h1>
@@ -37,12 +39,19 @@ export default function Login() {
             <input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           <ErrorMsg error={s.error} />
-          <button className="btn-primary w-full" disabled={s.busy}>{s.busy ? 'Ingresando…' : 'Ingresar'}</button>
+          <button className="btn-primary min-h-12 w-full" disabled={s.busy}>{s.busy ? 'Ingresando…' : 'Ingresar'}</button>
           <p className="flex gap-2 text-[11px] leading-snug faint">
             <ShieldCheck size={14} className="shrink-0" />
             Acceso restringido. La información se trata conforme a la Ley Orgánica de Protección de Datos Personales. Todas las acciones quedan registradas.
           </p>
         </form>
+        <div className="mt-4 flex flex-col gap-3">
+          <Link to="/servidor" reloadDocument className="flex min-h-14 items-center gap-3 rounded-2xl border px-4 text-sm transition-colors hover:bg-white/5" style={{ borderColor: 'var(--line)' }}>
+            <HeartHandshake size={20} className="shrink-0 text-cyan-300" aria-hidden />
+            <span><span className="font-semibold text-white">¿Es servidor del CGREG y necesita apoyo?</span> <span className="muted">Solicite atención sin cuenta.</span></span>
+          </Link>
+          <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--line)' }}><Instalar /></div>
+        </div>
       </div>
     </div>
   );

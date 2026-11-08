@@ -5,7 +5,12 @@ import { ErrorMsg, Field, Spinner, useSubmit } from '../components/ui';
 
 /** Llamadas públicas (sin sesión ni cabecera de mutación autenticada). */
 async function pub<T = any>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  let res: Response;
+  try {
+    res = await fetch(url, { method, cache: 'no-store', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  } catch {
+    throw new Error('Sin conexión a internet. Sus respuestas siguen en el formulario: vuelva a enviarlo cuando tenga señal.');
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? `Error ${res.status}`);
   return data;
@@ -13,10 +18,10 @@ async function pub<T = any>(method: string, url: string, body?: unknown): Promis
 
 function Marco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-full p-4">
+    <div className="min-h-full p-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <div className="mx-auto max-w-2xl">
         <div className="mb-5 flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-700 font-black shadow-glow" aria-hidden>CG</div>
+          <img src="/icons/icono-192.png" alt="" className="h-12 w-12 shrink-0 rounded-2xl shadow-glow" />
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wide text-cyan-200">Consejo de Gobierno del Régimen Especial de Galápagos</div>
             <h1 className="text-xl font-bold tracking-tight">{titulo}</h1>

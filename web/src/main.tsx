@@ -10,6 +10,8 @@ import Login, { CambiarPassword } from './pages/Login';
 import Oficina from './pages/Oficina';
 import { SolicitarAtencion, FirmarConsentimiento } from './pages/Publico';
 import { can, type Permiso } from '@shared/permissions';
+import { ApiError } from './lib/api';
+import { registrarServiceWorker, useEsMovil } from './lib/pwa';
 
 const Comando = lazy(() => import('./pages/Comando'));
 const Equipo = lazy(() => import('./pages/Equipo'));
@@ -32,8 +34,22 @@ const AtencionPrioritaria = lazy(() => import('./pages/AtencionPrioritaria'));
 const AtencionAbierta = lazy(() => import('./pages/AtencionAbierta'));
 const Expedientes = lazy(() => import('./pages/Expedientes'));
 const Expediente = lazy(() => import('./pages/Expediente'));
+const Inicio = lazy(() => import('./pages/Inicio'));
+const PortalServidor = lazy(() => import('./pages/PortalServidor'));
 
-const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1, refetchOnWindowFocus: true } } });
+// Conexiones inestables: reintenta con espera creciente solo ante cortes de red o errores del servidor (nunca ante 4xx),
+// y vuelve a consultar al recuperar la señal. La caché vive solo en memoria: nada clínico se guarda en el dispositivo.
+const qc = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 15_000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      retry: (n, e) => (e instanceof ApiError && e.status >= 400 && e.status < 500 ? false : n < 3),
+      retryDelay: (n) => Math.min(1000 * 2 ** n, 8000),
+    },
+  },
+});
 
 function Guard({ perm, children }: { perm: Permiso[]; children: React.ReactNode }) {
   const { me } = useAuth();
@@ -45,9 +61,11 @@ function App() {
   const { me, loading } = useAuth();
   // Páginas públicas (sin cuenta): solicitud de atención abierta y aceptación electrónica del consentimiento.
   const path = window.location.pathname;
-  if (path.startsWith('/solicitar-atencion') || path.startsWith('/consentimiento/')) {
+  const movil = useEsMovil();
+  if (path.startsWith('/solicitar-atencion') || path.startsWith('/consentimiento/') || path === '/servidor') {
     return (
       <Routes>
+        <Route path="/servidor" element={<Suspense fallback={<Spinner />}><PortalServidor /></Suspense>} />
         <Route path="/solicitar-atencion" element={<SolicitarAtencion />} />
         <Route path="/consentimiento/:token" element={<FirmarConsentimiento />} />
       </Routes>
@@ -64,7 +82,10 @@ function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Oficina />} />
+        {/* En el teléfono la portada es «Mi día»; en escritorio, la oficina virtual 3D. */}
+        <Route index element={movil ? <Suspense fallback={<Spinner />}><Inicio /></Suspense> : <Oficina />} />
+        <Route path="inicio" element={g(['oficina.ver'], <Inicio />)} />
+        <Route path="oficina" element={<Oficina />} />
         <Route path="comando" element={g(['indicadores.agregados'], <Comando />)} />
         <Route path="equipo" element={g(['equipo.ver'], <Equipo />)} />
         <Route path="agenda" element={g(['agenda.ver_todas', 'agenda.propia'], <Agenda />)} />
@@ -91,6 +112,8 @@ function App() {
     </Routes>
   );
 }
+
+registrarServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

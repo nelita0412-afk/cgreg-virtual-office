@@ -41,6 +41,10 @@ const schema = z.object({
   FORMULARIO_PUBLICO_HABILITADO: z.enum(['true', 'false']).default('true'),
   DOCUMENTO_MAX_MB: z.coerce.number().min(1).max(25).default(10),
   CONSENTIMIENTO_TOKEN_HORAS: z.coerce.number().min(1).max(720).default(72),
+  /** Notificaciones push de la app instalable (Web Push). Sin claves, solo hay notificaciones dentro de la app. */
+  VAPID_PUBLIC_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  VAPID_PRIVATE_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  VAPID_SUBJECT: z.string().default('mailto:soporte@cgreg.gob.ec'),
   EMERGENCY_ROUTE_TEXT: z
     .string()
     .default('Emergencia clínica: active de inmediato la ruta de escalamiento profesional (ECU 911 / protocolo de crisis). No la registre como solicitud administrativa.'),

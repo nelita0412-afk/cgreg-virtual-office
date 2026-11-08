@@ -50,6 +50,14 @@ body {
   .scroll-thin::-webkit-scrollbar-thumb { background: rgba(120,170,255,.25); border-radius: 8px; }
 }
 
+/* App móvil: en pantallas táctiles los campos usan 16px (iOS no hace zoom al enfocarlos) y no hay resaltado gris al tocar. */
+@media (max-width: 1023px) {
+  .input { font-size: 16px; min-height: 44px; }
+  .btn { min-height: 40px; }
+}
+html { -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior-y: none; }
+
 .office-label { pointer-events: auto; user-select: none; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }

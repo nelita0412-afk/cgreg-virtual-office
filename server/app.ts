@@ -28,6 +28,7 @@ import { adminRoutes } from './routes/admin';
 import { hceRoutes } from './routes/hce';
 import { consentimientosRoutes } from './routes/consentimientos';
 import { rutasRoutes } from './routes/rutas';
+import { pushRoutes } from './push';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -65,6 +66,12 @@ export async function buildApp(cfg: Config, opts: { sheetsClient?: SheetsClient;
   // Documentos firmados: el archivo llega como contenido binario; su tipo real se comprueba por firma.
   app.addContentTypeParser(['application/pdf', 'image/jpeg', 'image/png', 'application/octet-stream'], { parseAs: 'buffer', bodyLimit: cfg.DOCUMENTO_MAX_MB * 1024 * 1024 }, (_req, body, done) => done(null, body));
 
+  // Las respuestas de datos nunca se guardan en cachés (navegador, proxies ni la app instalada).
+  app.addHook('onSend', async (req, rep) => {
+    if (req.url.startsWith('/api/')) rep.header('cache-control', 'no-store');
+    else if (req.url === '/sw.js' || req.url.startsWith('/manifest.webmanifest')) rep.header('cache-control', 'no-cache');
+  });
+
   app.setErrorHandler((err, req, rep) => {
     if (err instanceof HttpError) return rep.code(err.status).send({ error: err.message, code: err.code });
     const e = err as { statusCode?: number; message: string };
@@ -94,6 +101,7 @@ export async function buildApp(cfg: Config, opts: { sheetsClient?: SheetsClient;
   hceRoutes(app, ctx);
   consentimientosRoutes(app, ctx);
   rutasRoutes(app, ctx);
+  pushRoutes(app, ctx);
 
   // Frontend compilado (producción).
   const here = dirname(fileURLToPath(import.meta.url));

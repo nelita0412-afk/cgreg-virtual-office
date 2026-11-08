@@ -9,7 +9,8 @@ import { fDiaSolo, fFechaHora, fRelativo } from '../lib/format';
 import { CATEGORIA_NECESIDAD_LABEL, ESPECIALIDAD_LABEL, ESTADO_DERIVACION_LABEL, ESTADO_SOLICITUD_LABEL, PRIORIDAD_LABEL, TIPO_SOLICITUD_LABEL, type CategoriaNecesidad, type EstadoDerivacion, type Especialidad } from '@shared/domain';
 import { DateTime } from 'luxon';
 
-export const tonoPrioridad: Record<string, Tono> = { urgente: 'critical', alta: 'serious', media: 'warning', baja: 'neutral' };
+export { tonoPrioridad } from '../lib/tonos';
+import { tonoPrioridad } from '../lib/tonos';
 
 function SolicitudItem({ s }: { s: any }) {
   return (

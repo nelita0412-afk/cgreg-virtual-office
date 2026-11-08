@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Tarjetas, Tarjeta } from '../components/Tarjetas';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -27,7 +28,22 @@ export default function Derivaciones() {
       </div>
       <Card>
         {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <Empty>No hay derivaciones registradas.</Empty> : (
-          <div className="overflow-x-auto">
+          <>
+          <Tarjetas>
+            {q.data.map((d: any) => (
+              <Tarjeta
+                key={d.id}
+                to={`/derivaciones/${d.id}`}
+                titulo={d.servidor_nombre}
+                detalle={<>{d.codigo} · deriva {d.derivante_nombre}{d.cita_inicio ? ` · cita ${fFechaHora(d.cita_inicio)}` : ''}</>}
+                insignias={<>
+                  <Badge tono={tonoPrioridad[d.prioridad]}>{PRIORIDAD_LABEL[d.prioridad as keyof typeof PRIORIDAD_LABEL]}</Badge>
+                  <Badge tono={tonoDerivacion[d.estado as EstadoDerivacion]}>{ESTADO_DERIVACION_LABEL[d.estado as EstadoDerivacion]}</Badge>
+                </>}
+              />
+            ))}
+          </Tarjetas>
+          <div className="hidden overflow-x-auto md:block">
             <table className="table">
               <thead><tr><th>Código</th><th>Servidor</th><th>Derivante</th><th>Prioridad</th><th>Solicitud</th><th>Estado</th><th>Cita</th></tr></thead>
               <tbody>
@@ -45,6 +61,7 @@ export default function Derivaciones() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
     </div>

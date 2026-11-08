@@ -5,14 +5,14 @@ import { Plus, AlertTriangle } from 'lucide-react';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Badge, Card, Empty, PageHeader, Spinner } from '../components/ui';
+import { Tarjetas, Tarjeta } from '../components/Tarjetas';
 import { SolicitarApoyoModal } from '../components/SolicitarApoyo';
 import { fDiaSolo, fRelativo } from '../lib/format';
 import { tonoPrioridad } from './Comando';
 import { ESTADOS_SOLICITUD, ESTADO_SOLICITUD_LABEL, PRIORIDAD_LABEL, TIPO_SOLICITUD_LABEL, type EstadoSolicitud } from '@shared/domain';
 
-export const tonoSolicitud: Record<EstadoSolicitud, 'warning' | 'info' | 'violet' | 'serious' | 'good' | 'neutral'> = {
-  nueva: 'warning', recibida: 'info', en_gestion: 'violet', pendiente_respuesta_externa: 'serious', requiere_informacion: 'serious', resuelta: 'good', cerrada: 'neutral',
-};
+export { tonoSolicitud } from '../lib/tonos';
+import { tonoSolicitud } from '../lib/tonos';
 
 type Filtro = { id: string; label: string; estado?: EstadoSolicitud; filtro?: string };
 
@@ -58,7 +58,22 @@ export default function Solicitudes() {
       </div>
       <Card>
         {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <Empty>No hay solicitudes en esta vista.</Empty> : (
-          <div className="overflow-x-auto">
+          <>
+          <Tarjetas>
+            {q.data.map((s: any) => (
+              <Tarjeta
+                key={s.id}
+                to={`/solicitudes/${s.id}`}
+                titulo={s.accion_requerida}
+                detalle={<>{s.codigo}{esCoord ? ` · ${s.solicitante_nombre}` : ''} · {fRelativo(s.ultima_accion ?? s.created_at)}{s.fecha_respuesta_requerida ? ` · respuesta ${fDiaSolo(s.fecha_respuesta_requerida)}` : ''}</>}
+                insignias={<>
+                  <Badge tono={tonoPrioridad[s.prioridad]}>{s.prioridad === 'urgente' && <AlertTriangle size={12} />}{PRIORIDAD_LABEL[s.prioridad as keyof typeof PRIORIDAD_LABEL]}</Badge>
+                  <Badge tono={tonoSolicitud[s.estado as EstadoSolicitud]}>{ESTADO_SOLICITUD_LABEL[s.estado as EstadoSolicitud]}</Badge>
+                </>}
+              />
+            ))}
+          </Tarjetas>
+          <div className="hidden overflow-x-auto md:block">
             <table className="table">
               <thead><tr><th>Código</th><th>Prioridad</th>{esCoord && <th>Solicitante</th>}<th>Acción requerida</th><th>Tipo</th><th>Estado</th><th>Respuesta requerida</th><th>Seguimiento</th><th>Última actividad</th></tr></thead>
               <tbody>
@@ -78,6 +93,7 @@ export default function Solicitudes() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
       <SolicitarApoyoModal open={nueva} onClose={() => setNueva(false)} onCreada={(id) => nav(`/solicitudes/${id}`)} />

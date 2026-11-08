@@ -13,13 +13,23 @@ export const onAuthError = (fn: Listener) => {
   };
 };
 
+/** Sin señal o corte de red: el mensaje dice qué pasó y qué hacer (no se pierde lo escrito en el formulario). */
+export const SIN_CONEXION = 'Sin conexión a internet. Lo que escribió sigue aquí: vuelva a intentarlo cuando recupere la señal.';
+export const esErrorDeRed = (e: unknown) => e instanceof ApiError && e.status === 0;
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    credentials: 'same-origin',
-    headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), 'x-cgreg': '1' },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), 'x-cgreg': '1' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new ApiError(0, SIN_CONEXION, 'sin_conexion');
+  }
   const ct = res.headers.get('content-type') ?? '';
   const data = ct.includes('json') ? await res.json() : await res.text();
   if (!res.ok) {

@@ -11,15 +11,8 @@ import { CitaAcciones } from '../components/CitaAcciones';
 import { ahoraGal, fHora, gal } from '../lib/format';
 import { ESTADO_ATENCION_LABEL, ESPECIALIDAD_LABEL, TZ_INSTITUCIONAL, type EstadoAtencion } from '@shared/domain';
 
-export const tonoAtencion: Record<EstadoAtencion, Tono> = {
-  pendiente: 'neutral',
-  programada: 'info',
-  confirmada: 'violet',
-  en_atencion: 'warning',
-  atendida: 'good',
-  reprogramada: 'neutral',
-  no_realizada: 'critical',
-};
+export { tonoAtencion } from '../lib/tonos';
+import { tonoAtencion } from '../lib/tonos';
 
 export default function Agenda() {
   const { me } = useAuth();

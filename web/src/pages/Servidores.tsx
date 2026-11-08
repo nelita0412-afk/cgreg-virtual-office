@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Tarjetas, Tarjeta } from '../components/Tarjetas';
 import { Link } from 'react-router-dom';
 import { Search, Check, Minus } from 'lucide-react';
 import { api, qs } from '../lib/api';
@@ -48,7 +49,24 @@ export default function Servidores() {
         {r.isLoading ? <Spinner /> : (r.data ?? []).length === 0 ? (
           <Empty>{me?.rol === 'profesional' ? 'Aún no tiene servidores asignados.' : 'No hay servidores registrados. Se importarán desde la matriz cuando la integración tenga credenciales.'}</Empty>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <Tarjetas>
+            {r.data.map((s: any) => (
+              <Tarjeta
+                key={s.id}
+                to={`/servidores/${s.id}`}
+                titulo={s.nombre}
+                detalle={<>{s.codigo_institucional ?? 'Sin código'}{s.unidad ? ` · ${s.unidad}` : ''} · {s.asignados.length ? s.asignados.map((a: any) => a.nombre).join(', ') : 'sin asignar'}</>}
+                insignias={<>
+                  {s.prioritaria && <Badge tono="critical">Prioritario</Badge>}
+                  {s.origen === 'solicitud_abierta' && <Badge tono="info">Atención abierta</Badge>}
+                  <Badge tono={s.verificacion?.startsWith('verificado') ? 'good' : 'warning'}>{VERIFICACION_LABEL[s.verificacion as Verificacion]}</Badge>
+                  {s.necesidades_abiertas > 0 && <Badge tono="warning">{s.necesidades_abiertas} necesidad(es) abierta(s)</Badge>}
+                </>}
+              />
+            ))}
+          </Tarjetas>
+          <div className="hidden overflow-x-auto md:block">
             <table className="table">
               <thead><tr><th>Servidor</th><th>Código / unidad</th><th>Vínculo</th><th>Asignado a</th><th>Contactado</th><th>Consentimiento</th><th>Valorado</th><th>Cita próxima</th><th>Necesidades abiertas</th></tr></thead>
               <tbody>
@@ -73,6 +91,7 @@ export default function Servidores() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
     </div>

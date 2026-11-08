@@ -5,6 +5,7 @@ import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Badge, Card, Empty, PageHeader, Spinner, Tabs } from '../components/ui';
 import { CitaAcciones } from '../components/CitaAcciones';
+import { Tarjetas, Tarjeta } from '../components/Tarjetas';
 import { fFechaHora } from '../lib/format';
 import { tonoAtencion } from './Agenda';
 import { ESTADOS_ATENCION, ESTADO_ATENCION_LABEL, ESPECIALIDAD_LABEL, type EstadoAtencion } from '@shared/domain';
@@ -29,7 +30,22 @@ export default function Atenciones() {
           </select>
         } title="Registro de atenciones">
           {at.isLoading ? <Spinner /> : (at.data ?? []).length === 0 ? <Empty>Sin atenciones registradas.</Empty> : (
-            <div className="overflow-x-auto">
+            <>
+            <Tarjetas>
+              {at.data.map((a: any) => (
+                <Tarjeta
+                  key={a.id}
+                  to={`/atenciones/${a.id}`}
+                  titulo={a.servidor_nombre}
+                  detalle={<>{a.codigo} · {a.inicio ? fFechaHora(a.inicio) : 'sin horario'} · {a.profesional_nombre}</>}
+                  insignias={<>
+                    <Badge tono={tonoAtencion[a.estado as EstadoAtencion]}>{ESTADO_ATENCION_LABEL[a.estado as EstadoAtencion]}</Badge>
+                    {a.estado === 'atendida' && (a.documentada_at ? <Badge tono="good">Documentada</Badge> : <Badge tono="warning">Documentación pendiente</Badge>)}
+                  </>}
+                />
+              ))}
+            </Tarjetas>
+            <div className="hidden overflow-x-auto md:block">
               <table className="table">
                 <thead><tr><th>Código</th><th>Servidor</th><th>Tipo</th><th>Profesional</th><th>Horario (GAL)</th><th>Estado</th><th>Documentación</th><th>Acciones</th></tr></thead>
                 <tbody>
@@ -48,12 +64,31 @@ export default function Atenciones() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </Card>
       ) : (
         <Card title="Seguimientos">
           {seg.isLoading ? <Spinner /> : (seg.data ?? []).length === 0 ? <Empty>Sin seguimientos.</Empty> : (
-            <div className="overflow-x-auto">
+            <>
+            <Tarjetas>
+              {seg.data.map((s: any) => (
+                <Tarjeta
+                  key={s.id}
+                  to={`/servidores/${s.servidor_id}`}
+                  titulo={s.servidor_nombre}
+                  detalle={<>{fFechaHora(s.fecha_programada)}{s.nota_operativa ? ` · ${s.nota_operativa}` : ''}</>}
+                  insignias={<Badge tono={s.estado === 'pendiente' ? 'warning' : s.estado === 'realizado' ? 'good' : 'neutral'}>{s.estado}</Badge>}
+                  pie={esPro && s.estado === 'pendiente' && s.profesional_id === me?.profesional_id ? (
+                    <div className="flex gap-2">
+                      <button className="btn-ghost btn-sm min-h-10 flex-1" onClick={async () => { await api.post(`/api/seguimientos/${s.id}/estado`, { estado: 'realizado' }); qc.invalidateQueries(); }}>Realizado</button>
+                      <button className="btn-ghost btn-sm min-h-10 flex-1" onClick={async () => { await api.post(`/api/seguimientos/${s.id}/estado`, { estado: 'cancelado' }); qc.invalidateQueries(); }}>Cancelar</button>
+                    </div>
+                  ) : undefined}
+                />
+              ))}
+            </Tarjetas>
+            <div className="hidden overflow-x-auto md:block">
               <table className="table">
                 <thead><tr><th>Fecha programada</th><th>Servidor</th><th>Profesional</th><th>Nota operativa</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
@@ -77,6 +112,7 @@ export default function Atenciones() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </Card>
       )}

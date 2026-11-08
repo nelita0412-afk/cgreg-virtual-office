@@ -19,7 +19,7 @@ export async function notificar(
       n.enlace ?? null,
     ]);
   }
-  await bus.emit(c, { tipo: 'notificacion', topic: 'notificaciones', actor, destinatarios: unicos, payload: { titulo: n.titulo } });
+  await bus.emit(c, { tipo: 'notificacion', topic: 'notificaciones', actor, destinatarios: unicos, payload: { titulo: n.titulo, enlace: n.enlace ?? null } });
 }
 
 export async function usuariosPorRol(c: Queryable, rol: string): Promise<string[]> {
