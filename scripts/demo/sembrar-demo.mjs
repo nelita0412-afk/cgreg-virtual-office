@@ -7,8 +7,9 @@ import WebSocket from 'ws';
 import { DateTime } from 'luxon';
 const B = process.env.DEMO_URL ?? 'http://localhost:4000', PASS = 'Demo-CGREG-2026';
 const URL_DB = process.env.DATABASE_URL ?? '';
-if (!/demo/i.test(new URL(URL_DB || 'postgres://x/sin_base').pathname)) {
-  console.error('Por seguridad, este script solo funciona con una base de datos cuyo nombre contenga «demo».');
+const destino = new URL(URL_DB || 'postgres://x/sin_base');
+if (!/demo/i.test(destino.pathname) || !['localhost', '127.0.0.1', '[::1]', ''].includes(destino.hostname)) {
+  console.error('Por seguridad, este script solo funciona con PostgreSQL local y una base cuyo nombre contenga «demo».');
   process.exit(1);
 }
 const db = new pg.Client({ connectionString: URL_DB }); await db.connect();
