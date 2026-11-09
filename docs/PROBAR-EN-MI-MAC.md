@@ -58,6 +58,15 @@ La Terminal muestra un enlace `https://<su-mac>.<su-tailnet>.ts.net`. Ábralo en
 - **iPhone (Safari)**: Compartir → **Agregar a inicio** → Agregar. Se abre a pantalla completa como una app.
 - **Android (Chrome)**: botón **Instalar** en la app, o menú ⋮ → **Instalar aplicación**.
 
+## Compatibilidad con macOS
+El script funciona con el Bash que trae macOS (3.2) y con versiones nuevas. En el Bash de macOS, un texto como `«$BASE»` hacía que el `»` se leyera como parte del nombre de la variable (`BASE?: unbound variable`); por eso todas las variables del script van entre llaves (`${BASE}`). Una prueba automática (`tests/scripts-demo.test.ts`) impide que vuelva a ocurrir.
+
+Para usar otro nombre de base (siempre nueva y con «demo» en el nombre):
+
+```bash
+BASE=cgreg_demo_prueba_20261108 ./scripts/demo/probar-en-mac.sh
+```
+
 ## Usuarios de prueba (contraseña `Demo-CGREG-2026`)
 | Perfil | Correo |
 |---|---|
