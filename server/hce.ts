@@ -1,3 +1,4 @@
+import { ejerceTrabajoSocial } from '@shared/permissions';
 import type { Queryable } from './db';
 import type { Config } from './config';
 import type { SessionUser } from './context';
@@ -16,9 +17,17 @@ export type NivelHce = 'clinico' | 'social' | 'administrativo' | null;
 export const ESPECIALIDADES_CLINICAS = ['psicologia', 'telemedicina', 'psiquiatria'];
 
 export async function nivelAcceso(c: Queryable, user: SessionUser, servidorId: string): Promise<NivelHce> {
-  if (user.rol === 'coordinacion') return 'administrativo';
+  if (user.rol === 'coordinacion') {
+    // Coordinación: información administrativa de todos los casos. Si además ejerce Trabajo Social, en los casos
+    // asignados a ella accede también a la información social. Nunca a las notas clínicas por su cargo.
+    if (ejerceTrabajoSocial(user) && user.profesional_id) {
+      const r = await c.query(`select 1 from ops.asignaciones where servidor_id = $1 and profesional_id = $2 and activa`, [servidorId, user.profesional_id]);
+      if (r.rows[0]) return 'social';
+    }
+    return 'administrativo';
+  }
   if (!user.profesional_id) return null;
-  if (user.rol === 'trabajo_social') {
+  if (ejerceTrabajoSocial(user) && user.rol !== 'profesional') {
     const r = await c.query(`select 1 from ops.asignaciones where servidor_id = $1 and profesional_id = $2 and activa`, [servidorId, user.profesional_id]);
     return r.rows[0] ? 'social' : null;
   }

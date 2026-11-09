@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import type { AppCtx } from './context';
+import { puede } from '@shared/permissions';
 import { COOKIE, sessionFromToken } from './auth';
 import type { PresenceService } from './presence';
 import type { EventRow } from './events';
@@ -14,6 +15,8 @@ import type { EventRow } from './events';
  */
 export function registerRealtime(app: FastifyInstance, ctx: AppCtx, presence: PresenceService) {
   const sockets = new Map<string, Set<WebSocket>>();
+  /** Usuarios conectados que pueden ver la disponibilidad del equipo (Oficina Virtual). */
+  const venOficina = new Set<string>();
 
   const send = (ws: WebSocket, msg: unknown) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
@@ -25,7 +28,8 @@ export function registerRealtime(app: FastifyInstance, ctx: AppCtx, presence: Pr
     for (const ws of targets) send(ws, { type: 'evento', evento: publico });
     if (ev.topic === 'presencia') {
       const snap = await presence.snapshot();
-      for (const set of sockets.values()) for (const ws of set) send(ws, { type: 'presencia', data: snap });
+      // La disponibilidad del equipo solo se envía a quien puede entrar a la Oficina Virtual (no a Autoridad, Auditoría ni Administración).
+      for (const [uid, set] of sockets) if (venOficina.has(uid)) for (const ws of set) send(ws, { type: 'presencia', data: snap });
     }
   });
 
@@ -45,7 +49,8 @@ export function registerRealtime(app: FastifyInstance, ctx: AppCtx, presence: Pr
     const set = sockets.get(user.id) ?? new Set();
     set.add(socket);
     sockets.set(user.id, set);
-    const registraPresencia = ['profesional', 'coordinacion', 'territorial'].includes(user.rol);
+    if (puede(user, 'oficina.entrar')) venOficina.add(user.id);
+    const registraPresencia = puede(user, 'presencia.propia');
     if (registraPresencia) await presence.conectar(user.id).catch((e) => req.log.error(e));
     send(socket, { type: 'hola', usuario: user.id, servidor_ts: new Date().toISOString() });
 
@@ -69,7 +74,10 @@ export function registerRealtime(app: FastifyInstance, ctx: AppCtx, presence: Pr
 
     socket.on('close', () => {
       set.delete(socket);
-      if (set.size === 0) sockets.delete(user.id);
+      if (set.size === 0) {
+        sockets.delete(user.id);
+        venOficina.delete(user.id);
+      }
       if (!registraPresencia) return;
       // Período de gracia para recargas de página o micro-cortes.
       setTimeout(async () => {

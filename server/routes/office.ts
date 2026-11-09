@@ -7,7 +7,7 @@ import { makeGuards } from '../auth';
 import { parse, u } from './util';
 import type { PresenceService } from '../presence';
 import { ESTADOS_MANUALES, TZ_INSTITUCIONAL, type EstadoPresencia } from '@shared/domain';
-import { can } from '@shared/permissions';
+import { puede } from '@shared/permissions';
 import { resumenSemanalInstitucional, type ReglaDisponibilidad } from '@shared/schedule';
 import { audit } from '../audit';
 
@@ -20,7 +20,7 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
   const { requirePerm } = makeGuards(ctx);
   const db = ctx.db;
 
-  app.get('/api/office/presencia', { preHandler: requirePerm('oficina.ver') }, async () => presence.snapshot());
+  app.get('/api/office/presencia', { preHandler: requirePerm('oficina.entrar') }, async () => presence.snapshot());
 
   app.post('/api/office/estado', { preHandler: requirePerm('presencia.propia') }, async (req) => {
     const b = parse(z.object({ estado: z.enum(ESTADOS_MANUALES as [EstadoPresencia, ...EstadoPresencia[]]) }), req.body);
@@ -29,7 +29,7 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
   });
 
   /** Feed general: solo textos públicos (sin nombres de servidores ni motivos clínicos). */
-  app.get('/api/office/eventos', { preHandler: requirePerm('oficina.ver') }, async (req) => {
+  app.get('/api/office/eventos', { preHandler: requirePerm('oficina.entrar') }, async (req) => {
     const q = parse(z.object({ limit: z.coerce.number().min(1).max(100).default(20) }), req.query);
     const r = await db.query(
       `select e.id, e.ts, e.tipo, e.topic, e.texto_publico as texto, u.nombre as actor_nombre
@@ -57,7 +57,7 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
       )
     ).rows[0];
     const der = (await db.query(`select count(*) filter (where estado not in ('cerrada','valorada','en_seguimiento')) as activas, count(*) filter (where estado in ('solicitada','en_revision','pendiente_coordinacion')) as pendientes from ops.derivaciones`)).rows[0];
-    const sol = can(user.rol, 'solicitudes.gestionar')
+    const sol = puede(user, 'solicitudes.gestionar')
       ? (await db.query(`select count(*) as n from ops.solicitudes where estado not in ('resuelta','cerrada')`)).rows[0].n
       : null;
     const proximas = await db.query(
@@ -99,7 +99,41 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
     return r.rows as (ReglaDisponibilidad & { id: number; profesional_id: string })[];
   }
 
-  app.get('/api/profesionales', { preHandler: requirePerm('equipo.ver') }, async () => {
+  /**
+   * Ficha de directorio de consulta limitada: identidad profesional y función en la Brigada. Sin casos, cargas,
+   * estadísticas individuales ni datos personales. La disponibilidad solo se informa para Psiquiatría (destino
+   * de derivaciones), que es cuando hace falta para coordinar.
+   */
+  async function fichasDirectorio(soloOficial: boolean) {
+    const pros = (await db.query(
+      `select id, nombre, nombre_corto, titulo, especialidad, perfil, experiencia, instituciones, funcion_brigada, modalidad, es_teleatencion, color, orden
+         from core.profesionales where activo ${soloOficial ? 'and en_directorio' : ''} order by orden, nombre`,
+    )).rows;
+    const franjas = (await db.query(
+      `select f.profesional_id, f.inicio, f.fin from core.franjas_confirmadas f join core.profesionales p on p.id = f.profesional_id
+        where f.activa and f.fin > now() and p.especialidad = 'psiquiatria' order by f.inicio`,
+    )).rows;
+    const snap = await presence.snapshot();
+    return pros.map((p) => {
+      const esPsiq = p.especialidad === 'psiquiatria';
+      const pr = snap.find((x) => x.profesional_id === p.id);
+      return {
+        ...p,
+        disponibilidad_derivacion: esPsiq
+          ? { conectado: !!pr?.conectado, disponible_ahora: pr?.estado === 'disponible', proximas_franjas: franjas.filter((f) => f.profesional_id === p.id).slice(0, 5).map(({ inicio, fin }) => ({ inicio, fin })) }
+          : null,
+      };
+    });
+  }
+
+  app.get('/api/directorio', { preHandler: requirePerm('directorio.ver') }, async (req) => {
+    await audit(db, u(req), 'directorio.consulta', null, null, {}, req.ip);
+    return fichasDirectorio(true);
+  });
+
+  app.get('/api/profesionales', { preHandler: requirePerm('equipo.ver', 'directorio.ver') }, async (req) => {
+    // Sin «Mi Equipo», solo la ficha limitada (sirve para selectores: especialidad y duración de citas).
+    if (!puede(u(req), 'equipo.ver')) return fichasDirectorio(false);
     const pros = (await db.query(`select p.*, exists(select 1 from core.usuarios u where u.profesional_id = p.id and u.activo) as tiene_cuenta from core.profesionales p where activo order by orden`)).rows;
     const reglas = await reglasDe();
     const franjas = (await db.query(`select id, profesional_id, inicio, fin, nota from core.franjas_confirmadas where activa and fin > now() order by inicio`)).rows;
@@ -115,11 +149,21 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
   });
 
   /** Ficha para el panel lateral: datos operativos (sin información de servidores). */
-  app.get('/api/profesionales/:id/panel', { preHandler: requirePerm('equipo.ver') }, async (req) => {
+  app.get('/api/profesionales/:id/panel', { preHandler: requirePerm('equipo.ver', 'oficina.entrar') }, async (req) => {
     const { id } = req.params as { id: string };
     const { ini, fin } = hoyGalapagos();
     const p = (await db.query(`select * from core.profesionales where id = $1`, [id])).rows[0];
     if (!p) throw forbidden('Profesional no encontrado');
+    if (!puede(u(req), 'equipo.ver')) {
+      // Tocar un avatar en la Oficina no da acceso a nada más: ficha de directorio y estado operativo básico.
+      const pr = (await presence.snapshot()).find((s) => s.profesional_id === id);
+      const { id: pid, nombre, nombre_corto, titulo, especialidad, perfil, experiencia, instituciones, funcion_brigada, modalidad, color } = p;
+      return {
+        limitado: true,
+        profesional: { id: pid, nombre, nombre_corto, titulo, especialidad, perfil, experiencia, instituciones, funcion_brigada, modalidad, color },
+        presencia: pr ? { estado: pr.estado, conectado: pr.conectado } : null,
+      };
+    }
     const prox = (await db.query(`select inicio, tipo from ops.atenciones where profesional_id = $1 and estado in ('programada','confirmada') and inicio > now() order by inicio limit 1`, [id])).rows[0] ?? null;
     const hoy = (await db.query(`select count(*) filter (where estado = 'atendida') as atendidas, count(*) filter (where estado in ('programada','confirmada','en_atencion','atendida','no_realizada')) as agendadas from ops.atenciones where profesional_id = $1 and inicio between $2 and $3`, [id, ini, fin])).rows[0];
     const seg = (await db.query(`select count(*) as n from ops.seguimientos where profesional_id = $1 and estado = 'pendiente'`, [id])).rows[0];

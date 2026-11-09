@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Activity, BarChart3, Box, CalendarClock, CalendarDays, CalendarRange, CheckCircle2, Footprints, Home, LayoutGrid, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Share2, Stethoscope, Users, UsersRound, Wifi, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { api } from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { useAuth, type Me } from '../lib/auth';
+import { puede, type Permiso } from '@shared/permissions';
 import { ProfesionalPanel } from '../components/ProfesionalPanel';
 import { EstadoPill, Spinner, Empty, Avatar } from '../components/ui';
 import { fHora, fFechaHora } from '../lib/format';
@@ -95,11 +96,30 @@ const SALA_ZONA: Record<string, { zona: Zona; profesionales?: (p: PresenciaSnaps
   descanso: { zona: 'descanso' },
 };
 
+const PERMISO_RUTA: Record<string, Permiso[]> = {
+  '/equipo': ['equipo.ver'],
+  '/comando': ['indicadores.agregados'],
+  '/territorio': ['territorio.registrar'],
+  '/atenciones': ['agenda.ver_todas', 'agenda.propia'],
+  '/derivaciones': ['derivaciones.crear', 'derivaciones.coordinar'],
+  '/debriefing': ['actividades.ver'],
+  '/capacitacion': ['actividades.ver'],
+};
+function rutaPermitida(ruta: string | undefined, me: Me | null): string | undefined {
+  if (!ruta) return undefined;
+  if (ruta === '/equipo' && !puede(me, 'equipo.ver')) return puede(me, 'directorio.ver') ? '/directorio' : undefined;
+  const req = PERMISO_RUTA[ruta];
+  return !req || req.some((p) => puede(me, p)) ? ruta : undefined;
+}
+
 function SalaPanel({ id, lista, actividades, onSelect }: { id: string; lista: PresenciaSnapshot[]; actividades: any[]; onSelect: (c: string) => void }) {
   const nav = useNavigate();
   const room = ROOMS.find((r) => r.id === id);
   const abierta = (ZONES_ABIERTAS as Record<string, { nombre: string; ruta?: string; descripcion: string }>)[id];
-  const info = room ? { nombre: room.nombre + (room.sub ? ` (${room.sub})` : ''), ruta: room.ruta, descripcion: room.descripcion, color: room.color } : { ...abierta, color: '#4D665C' };
+  const { me } = useAuth();
+  const base = room ? { nombre: room.nombre + (room.sub ? ` (${room.sub})` : ''), ruta: room.ruta, descripcion: room.descripcion, color: room.color } : { ...abierta, color: '#4D665C' };
+  // Recorrer la oficina no amplía permisos: cada zona abre solo el módulo que el perfil puede usar.
+  const info = { ...base, ruta: rutaPermitida(base.ruta, me) };
   const map = SALA_ZONA[id];
   const presentes = lista.filter((p) => p.conectado && map && p.zona === map.zona);
   const asignados = map?.profesionales ? lista.filter(map.profesionales) : [];
@@ -272,7 +292,7 @@ export default function Oficina() {
         <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-wrap items-start gap-2">
           <div className="pointer-events-auto flex max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border bg-slate-950/75 p-1 backdrop-blur scroll-thin" style={{ borderColor: 'var(--line)' }} role="toolbar" aria-label="Navegación por departamentos">
             {VISTAS.map((v) => (
-              <button key={v.id} onClick={() => (modo === '3d' ? (v.id === 'general' ? enfocar('general') : abrirSala(v.id)) : v.ruta && nav(v.ruta))} className={`shrink-0 rounded-lg px-2.5 py-1 text-xs transition ${vista === v.id && modo === '3d' ? 'bg-sky-600/60 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+              <button key={v.id} onClick={() => (modo === '3d' ? (v.id === 'general' ? enfocar('general') : abrirSala(v.id)) : (rutaPermitida(v.ruta, me) ? nav(rutaPermitida(v.ruta, me)!) : undefined))} className={`shrink-0 rounded-lg px-2.5 py-1 text-xs transition ${vista === v.id && modo === '3d' ? 'bg-sky-600/60 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
                 {v.label}
               </button>
             ))}

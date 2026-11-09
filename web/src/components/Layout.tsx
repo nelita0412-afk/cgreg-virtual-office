@@ -2,22 +2,23 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Building2, Gauge, Users, Sun, CalendarDays, IdCard, HeartPulse, Share2, Inbox, MessagesSquare, GraduationCap, BarChart3, Settings, ShieldCheck, MapPin, Clock, Bell, LogOut, Wifi, WifiOff, Map, Siren, DoorOpen, FolderHeart,
+  Building2, Gauge, Users, BookUser, Sun, CalendarDays, IdCard, HeartPulse, Share2, Inbox, MessagesSquare, GraduationCap, BarChart3, Settings, ShieldCheck, MapPin, Clock, Bell, LogOut, Wifi, WifiOff, Map, Siren, DoorOpen, FolderHeart,
 } from 'lucide-react';
-import { useAuth } from '../lib/auth';
+import { useAuth, type Me } from '../lib/auth';
 import { api } from '../lib/api';
 import { ahoraGal, fRelativo } from '../lib/format';
 import { useConexion } from '../lib/realtime';
-import { can } from '@shared/permissions';
+import { puede } from '@shared/permissions';
 import { ROL_LABEL } from '@shared/domain';
 import { BarraInferior, AvisoSinConexion, AvisoActualizacion, type ItemNav } from './AppMovil';
 import { alNavegarDesdeNotificacion, anularPushDeEsteDispositivo, useEsMovil } from '../lib/pwa';
 
 const NAV: ItemNav[] = [
   { to: '/inicio', label: 'Mi día', icon: Sun, perm: ['oficina.ver'] },
-  { to: '/', label: 'Oficina Virtual', corto: 'Oficina', icon: Building2, perm: ['oficina.ver'] },
+  { to: '/', label: 'Oficina Virtual', corto: 'Oficina', icon: Building2, perm: ['oficina.entrar'] },
   { to: '/comando', label: 'Centro de Comando', corto: 'Comando', icon: Gauge, perm: ['indicadores.agregados'] },
   { to: '/equipo', label: 'Mi Equipo', icon: Users, perm: ['equipo.ver'] },
+  { to: '/directorio', label: 'Directorio de profesionales', corto: 'Directorio', icon: BookUser, perm: ['directorio.ver'], ocultoCon: 'equipo.ver' },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays, perm: ['agenda.ver_todas', 'agenda.propia'] },
   { to: '/servidores', label: 'Servidores', icon: IdCard, perm: ['servidores.ver_todos', 'servidores.ver_asignados'] },
   { to: '/atencion-prioritaria', label: 'Atención prioritaria', icon: Siren, perm: ['prioritaria.ver'] },
@@ -113,13 +114,54 @@ function Conexion() {
   );
 }
 
+/** Nombres de los módulos según el trabajo de cada perfil (la ruta y el permiso son los mismos). */
+const ETIQUETAS: Record<string, Record<string, { label: string; corto?: string }>> = {
+  profesional: {
+    '/inicio': { label: 'Mi espacio de trabajo', corto: 'Mi espacio' },
+    '/agenda': { label: 'Mi agenda', corto: 'Agenda' },
+    '/atenciones': { label: 'Mis atenciones', corto: 'Atenciones' },
+    '/servidores': { label: 'Mis casos', corto: 'Casos' },
+    '/atencion-prioritaria': { label: 'Mis seguimientos', corto: 'Seguimientos' },
+    '/derivaciones': { label: 'Mis derivaciones', corto: 'Derivaciones' },
+    '/historias-clinicas': { label: 'Mis registros clínicos', corto: 'Registros' },
+    '/solicitudes': { label: 'Mis solicitudes', corto: 'Solicitudes' },
+  },
+  coordinacion: {
+    '/inicio': { label: 'Panel de Coordinación', corto: 'Panel' },
+    '/agenda': { label: 'Agenda general', corto: 'Agenda' },
+    '/servidores': { label: 'Asignaciones', corto: 'Asignaciones' },
+    '/atencion-prioritaria': { label: 'Seguimiento', corto: 'Seguimiento' },
+    '/derivaciones': { label: 'Derivaciones y articulación', corto: 'Derivaciones' },
+    '/solicitudes': { label: 'Solicitudes', corto: 'Solicitudes' },
+    '/historias-clinicas': { label: 'Casos y gestión social', corto: 'Casos' },
+  },
+  epidemiologia: {
+    '/inicio': { label: 'Mi espacio de trabajo', corto: 'Mi espacio' },
+    '/comando': { label: 'Indicadores epidemiológicos', corto: 'Indicadores' },
+    '/territorio': { label: 'Gestión de riesgos y territorio', corto: 'Territorio' },
+    '/solicitudes': { label: 'Mis solicitudes', corto: 'Solicitudes' },
+  },
+  autoridad: {
+    '/inicio': { label: 'Panel de indicadores generales', corto: 'Panel' },
+    '/comando': { label: 'Indicadores generales', corto: 'Indicadores' },
+  },
+  auditoria: { '/auditoria': { label: 'Panel de trazabilidad', corto: 'Trazabilidad' } },
+  admin: { '/configuracion': { label: 'Administración técnica', corto: 'Administración' } },
+};
+
+/** Navegación del perfil: solo módulos con permiso efectivo (rol base + funciones). El backend vuelve a verificarlo. */
+export function navDe(me: Me | null): ItemNav[] {
+  const et = ETIQUETAS[me?.rol ?? ''] ?? {};
+  return NAV.filter((i) => i.perm.some((p) => puede(me, p)) && !(i.ocultoCon && puede(me, i.ocultoCon))).map((i) => ({ ...i, ...(et[i.to] ?? {}) }));
+}
+
 export function Layout() {
   const { me } = useAuth();
   const qc = useQueryClient();
   const nav = useNavigate();
   const movil = useEsMovil();
   // En el teléfono «/» es «Mi día»; la oficina virtual queda en /oficina.
-  const items = NAV.filter((i) => i.perm.some((p) => can(me?.rol, p))).map((i) => (movil && i.to === '/' ? { ...i, to: '/oficina' } : i));
+  const items = navDe(me).map((i) => (movil && i.to === '/' ? { ...i, to: '/oficina' } : i));
   useEffect(() => alNavegarDesdeNotificacion((enlace) => nav(enlace)), [nav]);
   const salir = async () => {
     await anularPushDeEsteDispositivo();

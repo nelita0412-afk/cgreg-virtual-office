@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { can, type Permiso } from '@shared/permissions';
+import { puede, type Permiso } from '@shared/permissions';
 import type { AppCtx, SessionUser } from './context';
 import { HttpError, forbidden } from './context';
 import { newToken, sha256 } from './crypto';
@@ -59,7 +59,8 @@ export async function sessionFromToken(ctx: AppCtx, token: string | undefined, t
   const r = await ctx.db.query(
     `select s.id as sid, s.ultima_actividad, s.expira_absoluta, s.revocada_at,
             u.id, u.nombre, u.email, u.rol, u.profesional_id, u.activo, u.debe_cambiar_password,
-            p.especialidad, coalesce(p.es_teleatencion, false) as es_teleatencion
+            p.especialidad, coalesce(p.es_teleatencion, false) as es_teleatencion,
+            coalesce((select array_agg(f.funcion order by f.funcion) from core.usuario_funciones f where f.usuario_id = u.id and f.revocada_at is null), '{}') as funciones
        from core.sesiones s join core.usuarios u on u.id = s.usuario_id
        left join core.profesionales p on p.id = u.profesional_id
       where s.id = $1`,
@@ -79,6 +80,7 @@ export async function sessionFromToken(ctx: AppCtx, token: string | undefined, t
     nombre: s.nombre,
     email: s.email,
     rol: s.rol,
+    funciones: s.funciones ?? [],
     profesional_id: s.profesional_id,
     especialidad: s.especialidad ?? null,
     es_teleatencion: s.es_teleatencion,
@@ -103,7 +105,11 @@ export function makeGuards(ctx: AppCtx) {
     (...permisos: Permiso[]) =>
     async (req: FastifyRequest, rep: FastifyReply) => {
       await requireAuth(req, rep);
-      if (!permisos.some((p) => can(req.user!.rol, p))) throw forbidden();
+      if (!permisos.some((p) => puede(req.user, p))) {
+        // Evento de seguridad para Auditoría: intento de acceso sin el permiso requerido.
+        await audit(ctx.db, req.user!, 'acceso.denegado', 'ruta', null, { metodo: req.method, ruta: req.routeOptions?.url ?? req.url.split('?')[0], requiere: permisos }, req.ip).catch(() => {});
+        throw forbidden();
+      }
     };
   return { requireAuth, requirePerm };
 }

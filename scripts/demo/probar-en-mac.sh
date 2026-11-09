@@ -153,6 +153,6 @@ if [ "${IPHONE}" = true ]; then
   printf '   QR: abra el enlace en Chrome de la Mac → ícono «Compartir» de la barra de direcciones → «Crear código QR».\n'
 fi
 
-printf '\nUsuarios de prueba (contraseña Demo-CGREG-2026): coordinacion@demo.cgreg · hugo@demo.cgreg · demetrio@demo.cgreg · gabriel@demo.cgreg · autoridad@demo.cgreg\n'
+printf '\nUsuarios de prueba (contraseña Demo-CGREG-2026): marianella.becerra@demo.cgreg (Coordinación + Trabajo Social) · hugo@demo.cgreg · andrea@demo.cgreg · diego@demo.cgreg · demetrio@demo.cgreg · autoridad@demo.cgreg\n'
 printf 'Para detener todo: Ctrl + C\n'
 wait "${SERVIDOR}"

@@ -40,9 +40,18 @@ for (const [email, nombre, rol, pid] of [
   ['coord@mov.local', 'Coordinación (prueba)', 'coordinacion', null],
   ['admin@mov.local', 'Admin (prueba)', 'admin', null],
   ['gabriel@mov.local', null, 'profesional', 'gabriel-ordonez'],
-  ['demetrio@mov.local', null, 'profesional', 'demetrio-magallanes'],
+  ['demetrio@mov.local', null, 'epidemiologia', 'demetrio-magallanes'],
+  ['medico@mov.local', null, 'profesional', 'medico-prueba'],
   ['betsabe@mov.local', null, 'profesional', 'betsabe-cordova'],
 ]) {
+  if (pid === 'medico-prueba') {
+    // Telemedicina clínica: el directorio oficial no la tiene (Demetrio es Apoyo Epidemiológico), así que la animación de
+    // teleconsulta se prueba con un médico FICTICIO sentado en el séptimo puesto (libre: Sally no se conecta en esta prueba).
+    await c.query(`update core.profesionales set estacion = 'psi-7-libre' where id = 'sally-tinizaray'`);
+    await c.query(`insert into core.profesionales (id, nombre, nombre_corto, titulo, especialidad, perfil, modalidad, estacion, color, es_teleatencion, orden, en_directorio)
+                   values ('medico-prueba', 'Médico de Prueba', 'Médico', 'Médico (prueba)', 'telemedicina', 'Ficticio', 'Telemedicina', 'psi-7', '#78958A', true, 90, false)`);
+    await c.query(`insert into core.disponibilidad (profesional_id, dia_semana, hora_inicio, hora_fin, tz) select 'medico-prueba', d, '00:00', '23:59', 'America/Guayaquil' from generate_series(1, 7) d`);
+  }
   await c.query(`insert into core.usuarios (email,nombre,rol,profesional_id,password_hash,debe_cambiar_password) values ($1, coalesce($2,(select nombre from core.profesionales where id=$4)), $3,$4,$5,false)`, [email, nombre, rol, pid, hash]);
 }
 const srvA = (await c.query(`insert into ops.servidores (clave_fuente,nombre,codigo_institucional) values ('MOV:1','Servidor Prueba Uno','MOV-1') returning id`)).rows[0].id;
@@ -96,7 +105,7 @@ try {
   for (const p of await admin.api('GET', '/api/consentimientos/plantillas')) await admin.api('POST', `/api/consentimientos/plantillas/${p.id}/aprobar`, { referencia: 'Prueba visual' });
   admin.cerrar();
   await coord.api('POST', `/api/servidores/${srvA}/asignaciones`, { profesional_id: 'gabriel-ordonez' });
-  await coord.api('POST', `/api/servidores/${srvB}/asignaciones`, { profesional_id: 'demetrio-magallanes' });
+  await coord.api('POST', `/api/servidores/${srvB}/asignaciones`, { profesional_id: 'medico-prueba' });
 
   const av = (clave) => coord.page.evaluate((k) => window.__cgregOffice?.avatares?.()[k] ?? null, clave);
   const esperar = async (clave, cond, ms = 150000) => {
@@ -157,17 +166,21 @@ try {
   await enfocar('Gabriel');
   await coord.page.screenshot({ path: `${OUT}movimiento-4-gabriel-regreso.png` });
 
-  // ---------- 2. Demetrio: Telemedicina ----------
+  // ---------- 2. Demetrio (Apoyo Epidemiológico) y teleconsulta ----------
   const demetrio = await sesionApi('demetrio@mov.local');
   a = await esperar('demetrio-magallanes', (x) => cerca(x, 17.5, 1.6) && x.sentado > 0.9);
-  check(a && cerca(a, 17.5, 1.6), 'Demetrio llega a su escritorio en Telemedicina');
-  await consentir(demetrio, srvB, 'telemedicina', 'Servidor Prueba Dos', 'MOV-2');
-  const at2 = (await coord.api('POST', '/api/atenciones/pendiente', { servidor_id: srvB, profesional_id: 'demetrio-magallanes' })).id;
-  await demetrio.api('POST', `/api/atenciones/${at2}/iniciar`);
-  a = await esperar('demetrio-magallanes', (x) => cerca(x, 27.2, -1.4) && x.sentado > 0.9);
-  check(a && cerca(a, 27.2, -1.4) && a.pose === 'sentado_conversar', 'Demetrio se traslada a la estación de teleconsulta al confirmarse el inicio');
-  await enfocar('Demetrio');
-  await coord.page.screenshot({ path: `${OUT}movimiento-5-demetrio-telemedicina.png` });
+  check(a && cerca(a, 17.5, 1.6), 'Demetrio (Apoyo Epidemiológico) llega a su escritorio en la Oficina Virtual');
+  const sinClinica = await coord.api('POST', '/api/atenciones/pendiente', { servidor_id: srvB, profesional_id: 'demetrio-magallanes' }).then(() => 'creada', (e) => String(e.message));
+  check(/→ 4\d\d/.test(sinClinica), 'No se le pueden abrir atenciones clínicas a Demetrio');
+  const medico = await sesionApi('medico@mov.local');
+  await esperar('medico-prueba', (x) => x.sentado > 0.9);
+  await consentir(medico, srvB, 'telemedicina', 'Servidor Prueba Dos', 'MOV-2');
+  const at2 = (await coord.api('POST', '/api/atenciones/pendiente', { servidor_id: srvB, profesional_id: 'medico-prueba' })).id;
+  await medico.api('POST', `/api/atenciones/${at2}/iniciar`);
+  a = await esperar('medico-prueba', (x) => cerca(x, 27.2, -1.4) && x.sentado > 0.9);
+  check(a && cerca(a, 27.2, -1.4) && a.pose === 'sentado_conversar', 'En una teleconsulta, el profesional se traslada a la estación de Telemedicina al confirmarse el inicio');
+  await enfocar('Médico');
+  await coord.page.screenshot({ path: `${OUT}movimiento-5-telemedicina.png` });
 
   // ---------- 3. Betsabé: Debriefing ----------
   const betsabe = await sesionApi('betsabe@mov.local');
@@ -204,7 +217,7 @@ try {
   // ---------- 6. Movimiento ambiental: pasea quien no atiende; quien está en consulta o reunión no se levanta ----------
   await gabriel.api('POST', '/api/office/estado', { estado: 'disponible' });
   await coord.page.click('button[aria-label="Activar movimiento ambiental"]');
-  const vigilados = ['demetrio-magallanes', 'betsabe-cordova'];
+  const vigilados = ['medico-prueba', 'betsabe-cordova'];
   const seLevanto = new Set();
   const esperarVigilando = async (cond, ms) => {
     const t0 = Date.now();
@@ -228,7 +241,7 @@ try {
   check(a?.pose.startsWith('paseo:'), `Gabriel realiza una acción en el punto de interés (${a?.pose})`);
   a = await esperarVigilando((x) => !x.paseo && cerca(x, -26, 12.55) && x.sentado > 0.9, 120000);
   check(a && !a.paseo && cerca(a, -26, 12.55), 'Gabriel vuelve a su escritorio y se sienta al terminar el paseo');
-  check(seLevanto.size === 0, `En consulta (Demetrio) y en reunión (Betsabé) permanecen sentados atendiendo${seLevanto.size ? ': se levantó ' + [...seLevanto].join(', ') : ''}`);
+  check(seLevanto.size === 0, `En consulta (médico de prueba) y en reunión (Betsabé) permanecen sentados atendiendo${seLevanto.size ? ': se levantó ' + [...seLevanto].join(', ') : ''}`);
   const est = (await coord.api('GET', '/api/office/presencia')).find((x) => x.profesional_id === 'gabriel-ordonez');
   check(est?.estado === 'disponible', 'El paseo no cambia el estado real (sigue «Disponible»)');
 } catch (e) {

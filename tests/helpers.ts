@@ -37,6 +37,28 @@ export async function testApp(sheetsClient?: SheetsClient, env: Record<string, s
   return buildApp(cfg, { logger: false, sheetsClient });
 }
 
+/**
+ * Médico de telemedicina FICTICIO solo para pruebas. Desde la reorganización de la Brigada (migración 007) el
+ * directorio no tiene telemedicina clínica (Demetrio es Apoyo Epidemiológico sin acceso clínico), pero el flujo de
+ * telemedicina y el área «medicina» de la historia siguen existiendo y se prueban con este registro de prueba.
+ * Horario: lunes a viernes 19:00–21:00 (hora de Ecuador continental).
+ */
+export async function crearMedicoPrueba(b: BuiltApp, id = 'medico-prueba') {
+  await b.ctx.db.query(
+    `insert into core.profesionales (id, nombre, nombre_corto, titulo, especialidad, perfil, modalidad, estacion, color, es_teleatencion, orden, en_directorio)
+     values ($1, 'Médico de Prueba (ficticio)', 'Médico', 'Médico (prueba)', 'telemedicina', 'Registro ficticio de pruebas', 'Telemedicina (prueba)', $1, '#78958A', true, 90, false)
+     on conflict (id) do nothing`,
+    [id],
+  );
+  await b.ctx.db.query(
+    `insert into core.disponibilidad (profesional_id, dia_semana, hora_inicio, hora_fin, tz)
+     select $1, d, '19:00', '21:00', 'America/Guayaquil' from generate_series(1, 5) d
+      where not exists (select 1 from core.disponibilidad where profesional_id = $1)`,
+    [id],
+  );
+  return id;
+}
+
 export async function crearUsuario(b: BuiltApp, email: string, rol: string, profesional_id: string | null = null) {
   const r = await b.ctx.db.query(
     `insert into core.usuarios (email, nombre, rol, profesional_id, password_hash, debe_cambiar_password)

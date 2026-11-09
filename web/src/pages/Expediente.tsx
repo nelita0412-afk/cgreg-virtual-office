@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Lock, FolderPlus, History, PenLine, ShieldCheck, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { puede } from '@shared/permissions';
 import { Badge, Card, Empty, ErrorMsg, Field, Modal, PageHeader, Spinner, Tabs, useSubmit } from '../components/ui';
 import { ConsentimientosPanel } from '../components/Consentimientos';
 import { fDiaSolo, fFechaHora, localGalToISO } from '../lib/format';
@@ -200,7 +201,7 @@ export default function Expediente() {
       )}
 
       {tab === 'social' && d.nivel !== 'administrativo' && (
-        <Card title="Intervención social (registro separado)" actions={me?.rol === 'trabajo_social' && <button className="btn-primary btn-sm" onClick={() => setSocial(true)}><Plus size={13} /> Registrar intervención</button>}>
+        <Card title="Intervención social (registro separado)" actions={puede(me, 'social.registrar') && <button className="btn-primary btn-sm" onClick={() => setSocial(true)}><Plus size={13} /> Registrar intervención</button>}>
           {(d.intervenciones_sociales ?? []).length === 0 ? <Empty>Sin intervenciones sociales registradas.</Empty> : (
             <ul className="space-y-2 text-sm">
               {d.intervenciones_sociales.map((i: any) => (

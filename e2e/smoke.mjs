@@ -46,7 +46,7 @@ const usuarios = [
   ['maria@prueba.local', null, 'profesional', 'maria-alcivar'],
   ['sofia@prueba.local', null, 'profesional', 'sofia-guerra'],
   ['betsabe@prueba.local', null, 'profesional', 'betsabe-cordova'],
-  ['demetrio@prueba.local', null, 'profesional', 'demetrio-magallanes'],
+  ['demetrio@prueba.local', null, 'epidemiologia', 'demetrio-magallanes'],
   ['diego@prueba.local', null, 'profesional', 'diego-estrella'],
 ];
 for (const [email, nombre, rol, pid] of usuarios) {
@@ -70,7 +70,8 @@ async function sesion(email, viewport = { width: 1600, height: 1000 }) {
   await page.fill('input[type=email]', email);
   await page.fill('input[type=password]', PASS);
   await page.click('button:has-text("Ingresar")');
-  await page.waitForSelector('[aria-label="Indicadores en tiempo real"]', { timeout: 20000 });
+  // Cada perfil entra a su portada: la Oficina Virtual o, sin ella (Administración), su panel.
+  await page.waitForSelector(email.startsWith('admin') ? 'h1:has-text("Configuración")' : '[aria-label="Indicadores en tiempo real"]', { timeout: 20000 });
   const api = async (method, url, body) => {
     const r = await page.evaluate(
       async ([method, url, body]) => {
@@ -97,7 +98,7 @@ try {
   for (const k of ['gabriel', 'maria', 'sofia', 'betsabe', 'demetrio', 'diego']) pros[k] = await sesion(`${k}@prueba.local`, { width: 1280, height: 800 });
   await sleep(1500);
   let snap = await coord.api('GET', '/api/office/presencia');
-  check(snap.filter((p) => p.conectado && p.es_teleatencion).length === 6, '6 profesionales conectados vía WebSocket');
+  check(snap.filter((p) => p.conectado && ['gabriel-ordonez', 'maria-alcivar', 'sofia-guerra', 'betsabe-cordova', 'demetrio-magallanes', 'diego-estrella'].includes(p.profesional_id)).length === 6, '6 integrantes de la Brigada conectados vía WebSocket');
 
   // Gabriel: consulta real (atención pendiente iniciada ahora, con consentimiento)
   await coord.api('POST', `/api/servidores/${s1}/asignaciones`, { profesional_id: 'gabriel-ordonez' });

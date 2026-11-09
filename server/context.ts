@@ -2,7 +2,7 @@ import type { Config } from './config';
 import type { Db } from './db';
 import type { FieldCipher } from './crypto';
 import type { EventBus } from './events';
-import type { Rol, Especialidad } from '@shared/domain';
+import type { Rol, Especialidad, Funcion } from '@shared/domain';
 
 export interface AppCtx {
   cfg: Config;
@@ -17,6 +17,8 @@ export interface SessionUser {
   nombre: string;
   email: string;
   rol: Rol;
+  /** Funciones complementarias activas (se suman al rol base). */
+  funciones: Funcion[];
   profesional_id: string | null;
   especialidad: Especialidad | null;
   es_teleatencion: boolean;

@@ -4,7 +4,7 @@
 export const TZ_PROFESIONALES = 'America/Guayaquil';
 export const TZ_INSTITUCIONAL = 'Pacific/Galapagos';
 
-export const ROLES = ['admin', 'coordinacion', 'profesional', 'territorial', 'autoridad', 'auditoria', 'trabajo_social'] as const;
+export const ROLES = ['admin', 'coordinacion', 'profesional', 'territorial', 'autoridad', 'auditoria', 'trabajo_social', 'epidemiologia'] as const;
 export type Rol = (typeof ROLES)[number];
 export const ROL_LABEL: Record<Rol, string> = {
   admin: 'Administrador institucional',
@@ -14,15 +14,29 @@ export const ROL_LABEL: Record<Rol, string> = {
   autoridad: 'Autoridad',
   auditoria: 'Auditoría',
   trabajo_social: 'Trabajo Social',
+  epidemiologia: 'Apoyo Epidemiológico y Territorial',
 };
 
-export const ESPECIALIDADES = ['psicologia', 'telemedicina', 'psiquiatria', 'trabajo_social'] as const;
+/**
+ * Funciones complementarias: se suman al rol base de una cuenta (una persona, una cuenta, varias funciones).
+ * Se otorgan y revocan desde Administración con motivo, y quedan auditadas. Nunca se deducen del nombre o título.
+ */
+export const FUNCIONES = ['trabajo_social', 'territorial', 'gestion_operativa'] as const;
+export type Funcion = (typeof FUNCIONES)[number];
+export const FUNCION_LABEL: Record<Funcion, string> = {
+  trabajo_social: 'Trabajo Social',
+  territorial: 'Función territorial',
+  gestion_operativa: 'Gestión operativa (Mi Equipo)',
+};
+
+export const ESPECIALIDADES = ['psicologia', 'telemedicina', 'psiquiatria', 'trabajo_social', 'epidemiologia'] as const;
 export type Especialidad = (typeof ESPECIALIDADES)[number];
 export const ESPECIALIDAD_LABEL: Record<Especialidad, string> = {
   psicologia: 'Psicología Clínica',
   telemedicina: 'Telemedicina',
   psiquiatria: 'Psiquiatría',
   trabajo_social: 'Trabajo Social',
+  epidemiologia: 'Epidemiología',
 };
 /** Duraciones permitidas por especialidad (minutos). */
 export const DURACIONES: Record<Especialidad, number[]> = {
@@ -30,6 +44,7 @@ export const DURACIONES: Record<Especialidad, number[]> = {
   telemedicina: [20, 30],
   psiquiatria: [20, 30],
   trabajo_social: [], // no realiza atenciones clínicas
+  epidemiologia: [], // apoyo epidemiológico y territorial: sin atenciones clínicas
 };
 
 // ---- Presencia digital ----

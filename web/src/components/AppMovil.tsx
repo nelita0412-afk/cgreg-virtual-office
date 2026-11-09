@@ -3,20 +3,21 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { BellRing, Download, LogOut, Send, MapPin, MoreHorizontal, RefreshCw, Share, Smartphone, WifiOff, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useActualizacion, useEnLinea, useInstalacion, usePush } from '../lib/pwa';
-import { can, type Permiso } from '@shared/permissions';
+import { puede, type Permiso } from '@shared/permissions';
 import { ROL_LABEL } from '@shared/domain';
 
-export type ItemNav = { to: string; label: string; corto?: string; icon: LucideIcon; perm: Permiso[] };
+export type ItemNav = { to: string; label: string; corto?: string; icon: LucideIcon; perm: Permiso[]; /** Se oculta si la cuenta tiene este permiso (p. ej., Directorio cuando ya ve Mi Equipo). */ ocultoCon?: Permiso };
 
 /** Destinos de la barra inferior por perfil (máximo 4 + «Más»). Lo demás queda en «Más». */
 const PRIORIDAD_POR_ROL: Record<string, string[]> = {
-  profesional: ['/inicio', '/agenda', '/atenciones', '/solicitudes'],
-  coordinacion: ['/inicio', '/solicitudes', '/agenda', '/derivaciones'],
+  profesional: ['/inicio', '/agenda', '/atenciones', '/oficina'],
+  coordinacion: ['/inicio', '/agenda', '/solicitudes', '/equipo'],
   trabajo_social: ['/inicio', '/servidores', '/solicitudes', '/historias-clinicas'],
   territorial: ['/inicio', '/territorio', '/solicitudes', '/oficina'],
-  autoridad: ['/inicio', '/oficina', '/comando', '/reportes'],
-  auditoria: ['/inicio', '/auditoria', '/reportes', '/oficina'],
-  admin: ['/inicio', '/oficina', '/configuracion', '/equipo'],
+  epidemiologia: ['/inicio', '/comando', '/territorio', '/oficina'],
+  autoridad: ['/inicio', '/comando', '/reportes'],
+  auditoria: ['/inicio', '/auditoria'],
+  admin: ['/inicio', '/configuracion', '/auditoria'],
 };
 
 export function BarraInferior({ items, onSalir }: { items: ItemNav[]; onSalir: () => void }) {

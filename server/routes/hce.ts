@@ -70,7 +70,13 @@ export function hceRoutes(app: FastifyInstance, ctx: AppCtx) {
     if (nivel === 'social') {
       // Trabajo Social: sus registros e información operativa; sin notas clínicas.
       await audit(db, user, 'hce.lectura_social', 'servidor', id, { intervenciones: sociales.length }, req.ip);
-      return { ...base, intervenciones_sociales: sociales, seguimientos: seguimientos.map(({ nota_operativa, ...r }) => r) };
+      const social = { ...base, intervenciones_sociales: sociales, seguimientos: seguimientos.map(({ nota_operativa, ...r }) => r) };
+      if (user.rol !== 'coordinacion') return social;
+      // Coordinadora que además ejerce Trabajo Social en este caso: suma los metadatos administrativos (sin contenido clínico).
+      const resumen = x
+        ? (await db.query(`select area, count(*)::int as entradas, count(*) filter (where estado = 'validada')::int as validadas, max(updated_at) as ultima from clinical.entradas where expediente_id = $1 group by area`, [x.id])).rows
+        : [];
+      return { ...social, resumen_areas: resumen, derivaciones };
     }
 
     // Nivel clínico (continuidad asistencial)

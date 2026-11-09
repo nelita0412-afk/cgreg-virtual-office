@@ -2,14 +2,16 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from 're
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, esErrorDeRed, onAuthError } from './api';
 import { realtime } from './realtime';
-import { can, type Permiso } from '@shared/permissions';
-import type { Rol, Especialidad } from '@shared/domain';
+import { puede, type Permiso } from '@shared/permissions';
+import type { Rol, Especialidad, Funcion } from '@shared/domain';
 
 export interface Me {
   id: string;
   nombre: string;
   email: string;
   rol: Rol;
+  /** Funciones complementarias activas (p. ej., Trabajo Social para la Coordinadora). */
+  funciones: Funcion[];
   profesional_id: string | null;
   especialidad: Especialidad | null;
   es_teleatencion: boolean;
@@ -57,5 +59,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export const useAuth = () => useContext(Ctx);
 export function useCan(p: Permiso) {
   const { me } = useAuth();
-  return can(me?.rol, p);
+  return puede(me, p);
 }

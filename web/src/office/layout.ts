@@ -37,18 +37,19 @@ export const ROOMS: RoomDef[] = [
 export const ZONES_ABIERTAS = {
   coordinacion: { nombre: 'Coordinación CGREG', center: [0, -0.5] as V2, ruta: '/comando', descripcion: 'Supervisión institucional de toda la operación.', vista: { target: [0, -0.5] as V2, zoom: 3.0 } },
   territorial: { nombre: 'Articulación Territorial', center: [10.5, -0.5] as V2, ruta: '/territorio', descripcion: 'Coordinación con colaboradores desplegados en territorio (DECE).', vista: { target: [10.5, -0.5] as V2, zoom: 3.0 } },
-  psicologia: { nombre: 'Psicología Clínica', center: [-3.5, 13.5] as V2, ruta: '/equipo', descripcion: 'Estaciones de trabajo de las seis psicólogas y psicólogos clínicos.', vista: { target: [-6, 11.5] as V2, zoom: 1.1 } },
+  psicologia: { nombre: 'Psicología Clínica', center: [-3.5, 13.5] as V2, ruta: '/equipo', descripcion: 'Estaciones de trabajo de las psicólogas y psicólogos clínicos de la Brigada.', vista: { target: [-6, 11.5] as V2, zoom: 1.1 } },
   descanso: { nombre: 'Zona de pausa', center: [27.5, 14] as V2, descripcion: 'Espacio de pausa activa.', vista: { target: [26.5, 13.5] as V2, zoom: 3.4 } },
 };
 
-/** Estaciones de Psicología Clínica: 9 m entre centros. */
+/** Estaciones de Psicología Clínica: 7,75 m entre centros (siete puestos en la misma fila, hasta la zona de pausa). */
 export const ESTACIONES_PSI: Record<string, V2> = {
   'psi-1': [-26, 13.5],
-  'psi-2': [-17, 13.5],
-  'psi-3': [-8, 13.5],
-  'psi-4': [1, 13.5],
-  'psi-5': [10, 13.5],
-  'psi-6': [19, 13.5],
+  'psi-2': [-18.25, 13.5],
+  'psi-3': [-10.5, 13.5],
+  'psi-4': [-2.75, 13.5],
+  'psi-5': [5, 13.5],
+  'psi-6': [12.75, 13.5],
+  'psi-7': [20.5, 13.5],
 };
 
 /** Consultorios individuales (centro de cada cabina, 3 × 2). */
@@ -74,7 +75,7 @@ function silla(centro: V2, i: number, n: number, rx: number, rz: number): Slot {
 /** Destino del avatar según la zona REAL que informa el backend. */
 export function slotPara(p: PresenciaSnapshot, zona: Zona, indiceEnZona: number): Slot | null {
   const est = p.estacion ?? '';
-  const idxPsi = est.startsWith('psi-') ? Number(est.slice(4)) - 1 : indiceEnZona % 6;
+  const idxPsi = est.startsWith('psi-') ? Number(est.slice(4)) - 1 : indiceEnZona % Object.keys(ESTACIONES_PSI).length;
   const trabajo: Slot['pose'] = p.estado === 'en_documentacion' ? 'sentado_teclear' : 'sentado_trabajo';
   switch (zona) {
     case 'fuera':

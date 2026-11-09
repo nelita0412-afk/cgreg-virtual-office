@@ -7,7 +7,7 @@ import { Badge, Card, ErrorMsg, Field, Modal, PageHeader, Spinner, Tabs, useSubm
 import { CambiarPassword } from './Login';
 import { AjustesDispositivo } from '../components/AppMovil';
 import { fFechaHora } from '../lib/format';
-import { ROLES, ROL_LABEL, SERVICIO_CONSENTIMIENTO_LABEL, type Rol, type ServicioConsentimiento } from '@shared/domain';
+import { ESPECIALIDAD_LABEL, FUNCIONES, FUNCION_LABEL, ROLES, ROL_LABEL, SERVICIO_CONSENTIMIENTO_LABEL, type Especialidad, type Funcion, type Rol, type ServicioConsentimiento } from '@shared/domain';
 
 export default function Configuracion() {
   const puedeUsuarios = useCan('usuarios.gestionar');
@@ -134,8 +134,9 @@ function Sync() {
 function Usuarios() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['usuarios'], queryFn: () => api.get('/api/admin/usuarios') });
-  const pros = useQuery({ queryKey: ['profesionales'], queryFn: () => api.get('/api/profesionales') });
+  const pros = useQuery({ queryKey: ['registros-directorio'], queryFn: () => api.get('/api/admin/registros-directorio') });
   const [nuevo, setNuevo] = useState(false);
+  const [funcionesDe, setFuncionesDe] = useState<any>(null);
   const [temporal, setTemporal] = useState<string | null>(null);
   const [f, setF] = useState({ email: '', nombre: '', rol: 'profesional' as Rol, profesional_id: '' });
   const s = useSubmit(() => api.post('/api/admin/usuarios', { ...f, profesional_id: f.profesional_id || undefined }), (r) => { setTemporal(r.password_temporal); setNuevo(false); qc.invalidateQueries({ queryKey: ['usuarios'] }); });
@@ -149,15 +150,18 @@ function Usuarios() {
       {q.isLoading ? <Spinner /> : (
         <div className="overflow-x-auto">
           <table className="table">
-            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Profesional</th><th>Estado</th><th>Último acceso</th><th></th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol base</th><th>Funciones complementarias</th><th>Registro del directorio</th><th>Estado</th><th>Último acceso</th><th></th></tr></thead>
             <tbody>
               {q.data.map((u: any) => (
                 <tr key={u.id}>
-                  <td>{u.nombre}</td><td className="muted">{u.email}</td><td>{ROL_LABEL[u.rol as Rol]}</td><td className="muted">{u.profesional_id ?? '—'}</td>
+                  <td>{u.nombre}</td><td className="muted">{u.email}</td><td>{ROL_LABEL[u.rol as Rol]}</td>
+                  <td>{u.funciones.length ? u.funciones.map((x: any) => <Badge key={x.funcion} className="mr-1">{FUNCION_LABEL[x.funcion as Funcion]}</Badge>) : <span className="faint">—</span>}</td>
+                  <td className="muted">{u.profesional_nombre ?? '—'}</td>
                   <td>{u.activo ? <Badge tono="good">Activo</Badge> : <Badge>Inactivo</Badge>}{u.debe_cambiar_password && <Badge tono="warning" className="ml-1">Clave temporal</Badge>}</td>
                   <td className="tabular-nums">{fFechaHora(u.ultimo_acceso)}</td>
                   <td>
                     <div className="flex flex-wrap gap-1">
+                      <button className="btn-ghost btn-sm" onClick={() => setFuncionesDe(u)}>Funciones</button>
                       <button className="btn-ghost btn-sm" onClick={() => accion(u.id, 'restablecer')}>Restablecer clave</button>
                       <button className="btn-ghost btn-sm" onClick={() => accion(u.id, 'cerrar-sesiones')}>Cerrar sesiones</button>
                       {u.activo ? <button className="btn-ghost btn-sm text-red-300" onClick={() => accion(u.id, 'desactivar')}>Desactivar</button> : <button className="btn-ghost btn-sm" onClick={() => accion(u.id, 'activar')}>Activar</button>}
@@ -174,12 +178,12 @@ function Usuarios() {
           <Field label="Nombre completo"><input className="input" required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
           <Field label="Correo institucional"><input type="email" className="input" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
           <Field label="Rol"><select className="input" value={f.rol} onChange={(e) => setF({ ...f, rol: e.target.value as Rol })}>{ROLES.map((r) => <option key={r} value={r}>{ROL_LABEL[r]}</option>)}</select></Field>
-          {f.rol === 'trabajo_social' && <p className="text-xs muted">Se creará su registro de Trabajo Social (no forma parte de los ocho profesionales de teleatención ni de la oficina virtual).</p>}
-          {(f.rol === 'profesional' || f.rol === 'territorial') && (
-            <Field label="Registro profesional vinculado">
-              <select className="input" required={f.rol === 'profesional'} value={f.profesional_id} onChange={(e) => setF({ ...f, profesional_id: e.target.value })}>
-                <option value="">Seleccione…</option>
-                {(pros.data ?? []).filter((p: any) => (f.rol === 'profesional' ? p.es_teleatencion : !p.es_teleatencion)).map((p: any) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          {f.rol === 'trabajo_social' && <p className="text-xs muted">Se creará su registro de Trabajo Social.</p>}
+          {['profesional', 'territorial', 'epidemiologia', 'coordinacion'].includes(f.rol) && (
+            <Field label="Registro del directorio vinculado" hint="Solo registros sin cuenta. El rol debe corresponder a la profesión del registro; el servidor lo verifica.">
+              <select className="input" required={f.rol === 'profesional' || f.rol === 'epidemiologia'} value={f.profesional_id} onChange={(e) => setF({ ...f, profesional_id: e.target.value })}>
+                <option value="">{f.rol === 'coordinacion' ? 'Sin vínculo' : 'Seleccione…'}</option>
+                {(pros.data ?? []).filter((p: any) => !p.cuenta).map((p: any) => <option key={p.id} value={p.id}>{p.nombre} · {ESPECIALIDAD_LABEL[p.especialidad as Especialidad]}</option>)}
               </select>
             </Field>
           )}
@@ -187,11 +191,80 @@ function Usuarios() {
           <div className="flex justify-end gap-2"><button type="button" className="btn-ghost" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn-primary" disabled={s.busy}>Crear</button></div>
         </form>
       </Modal>
+      {funcionesDe && <FuncionesModal usuario={funcionesDe} registros={pros.data ?? []} onClose={() => { setFuncionesDe(null); qc.invalidateQueries({ queryKey: ['usuarios'] }); qc.invalidateQueries({ queryKey: ['registros-directorio'] }); }} />}
       <Modal open={!!temporal} onClose={() => setTemporal(null)} title="Contraseña temporal">
         <p className="text-sm muted">Entréguela por un canal seguro. Se muestra una sola vez y debe cambiarse en el primer ingreso.</p>
         <div className="mt-3 select-all rounded-xl bg-eucalipto p-3 text-center font-mono text-lg tracking-wider">{temporal}</div>
       </Modal>
     </Card>
+  );
+}
+
+/**
+ * Funciones complementarias de una cuenta (se suman al rol base) y vínculo con su registro del directorio.
+ * Todo cambio exige un motivo y queda auditado; los vínculos existentes no se reasignan.
+ */
+function FuncionesModal({ usuario, registros, onClose }: { usuario: any; registros: any[]; onClose: () => void }) {
+  const [motivo, setMotivo] = useState('');
+  const [funcion, setFuncion] = useState<Funcion>('trabajo_social');
+  const [registro, setRegistro] = useState('');
+  const [err, setErr] = useState<unknown>(null);
+  const [activas, setActivas] = useState<string[]>(usuario.funciones.map((x: any) => x.funcion));
+  const [vinculo, setVinculo] = useState<string | null>(usuario.profesional_nombre ?? null);
+  const hacer = async (fn: () => Promise<unknown>, despues: () => void) => {
+    setErr(null);
+    try {
+      await fn();
+      despues();
+      setMotivo('');
+    } catch (e) {
+      setErr(e);
+    }
+  };
+  return (
+    <Modal open onClose={onClose} title={`Funciones de ${usuario.nombre}`}>
+      <div className="space-y-4 text-sm">
+        <p className="muted">Rol base: <strong>{ROL_LABEL[usuario.rol as Rol]}</strong>. Las funciones complementarias suman permisos; no crean otra cuenta ni dependen del nombre o el título.</p>
+        <Field label="Motivo (obligatorio, queda en auditoría)"><input className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej.: Designación como coordinadora (oficio n.º …)" /></Field>
+        <div>
+          <div className="label">Funciones activas</div>
+          {activas.length === 0 && <p className="faint">Ninguna.</p>}
+          <ul className="space-y-1">
+            {activas.map((x) => (
+              <li key={x} className="flex items-center justify-between gap-2">
+                <span>{FUNCION_LABEL[x as Funcion]}</span>
+                <button className="btn-ghost btn-sm text-red-300" disabled={motivo.trim().length < 5}
+                  onClick={() => hacer(() => api.post(`/api/admin/usuarios/${usuario.id}/funciones/${x}/revocar`, { motivo }), () => setActivas(activas.filter((y) => y !== x)))}>Revocar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Otorgar función">
+            <select className="input" value={funcion} onChange={(e) => setFuncion(e.target.value as Funcion)}>
+              {FUNCIONES.filter((x) => !activas.includes(x)).map((x) => <option key={x} value={x}>{FUNCION_LABEL[x]}</option>)}
+            </select>
+          </Field>
+          <button className="btn-primary" disabled={motivo.trim().length < 5 || activas.includes(funcion)}
+            onClick={() => hacer(() => api.post(`/api/admin/usuarios/${usuario.id}/funciones`, { funcion, motivo }), () => setActivas([...activas, funcion]))}>Otorgar</button>
+        </div>
+        <div>
+          <div className="label">Registro del directorio</div>
+          {vinculo ? <p>{vinculo} <span className="faint">(los vínculos no se reasignan)</span></p> : (
+            <div className="flex flex-wrap items-end gap-2">
+              <select className="input w-auto" value={registro} onChange={(e) => setRegistro(e.target.value)}>
+                <option value="">Seleccione un registro sin cuenta…</option>
+                {registros.filter((p: any) => !p.cuenta).map((p: any) => <option key={p.id} value={p.id}>{p.nombre} · {ESPECIALIDAD_LABEL[p.especialidad as Especialidad]}</option>)}
+              </select>
+              <button className="btn-ghost" disabled={!registro || motivo.trim().length < 5}
+                onClick={() => hacer(() => api.post(`/api/admin/usuarios/${usuario.id}/vincular`, { profesional_id: registro, motivo }), () => setVinculo(registros.find((p: any) => p.id === registro)?.nombre ?? registro))}>Vincular</button>
+            </div>
+          )}
+        </div>
+        <ErrorMsg error={err} />
+        <div className="flex justify-end"><button className="btn-ghost" onClick={onClose}>Cerrar</button></div>
+      </div>
+    </Modal>
   );
 }
 

@@ -103,7 +103,7 @@ try {
   // ---------- 2. Profesional en el teléfono ----------
   const pro = await telefono('gabriel@movil.local');
   check((await pro.page.locator('h1', { hasText: 'Gabriel' }).count()) === 1 && (await pro.page.locator('text=Hoy en mi agenda').count()) === 1, 'Profesional: la portada es «Mi día» con su agenda de hoy');
-  check(JSON.stringify(await etiquetasBarra(pro.page)) === JSON.stringify(['Mi día', 'Agenda', 'Atenciones', 'Solicitudes', 'Más']), 'Profesional: barra inferior Mi día · Agenda · Atenciones · Solicitudes · Más');
+  check(JSON.stringify(await etiquetasBarra(pro.page)) === JSON.stringify(['Mi espacio', 'Agenda', 'Atenciones', 'Oficina', 'Más']), 'Profesional: barra inferior Mi espacio · Agenda · Atenciones · Oficina · Más');
   check((await pro.page.locator('[role=radiogroup][aria-label="Mi estado en la oficina"]').count()) === 1, 'Profesional: puede cambiar su estado de presencia desde el teléfono');
   await pro.page.click('[role=radio]:has-text("En pausa")');
   await sleep(1500);
@@ -114,9 +114,9 @@ try {
   await sleep(600);
   check(await pro.page.locator('[role=dialog][aria-label="Más opciones"]').isVisible(), 'El panel «Más» se abre con el resto de módulos');
   await pro.page.screenshot({ path: `${OUT}movil-2-mas.png` });
-  await pro.page.click('[role=dialog] >> text=Historias clínicas');
+  await pro.page.click('[role=dialog] >> text=Mis registros clínicos');
   await sleep(1500);
-  check(pro.page.url().endsWith('/historias-clinicas'), 'Desde «Más» se abre un módulo existente (historias clínicas)');
+  check(pro.page.url().endsWith('/historias-clinicas'), 'Desde «Más» se abre un módulo existente (mis registros clínicos)');
   for (const r of ['/inicio', '/agenda', '/atenciones', '/solicitudes', '/derivaciones', '/servidores', '/oficina', '/historias-clinicas', '/debriefing', '/capacitacion', '/configuracion']) {
     await pro.page.goto(BASE + r);
     await sleep(1800);
@@ -156,7 +156,7 @@ try {
   // ---------- 5. Coordinación ----------
   const coord = await telefono('coord@movil.local');
   check((await coord.page.locator('text=Requiere su atención').count()) === 1 && (await coord.page.locator('text=Lo que necesitan los profesionales').count()) === 1, 'Coordinación: «Mi día» con alertas operativas y bandeja');
-  check(JSON.stringify(await etiquetasBarra(coord.page)) === JSON.stringify(['Mi día', 'Solicitudes', 'Agenda', 'Derivaciones', 'Más']), 'Coordinación: barra inferior Mi día · Solicitudes · Agenda · Derivaciones · Más');
+  check(JSON.stringify(await etiquetasBarra(coord.page)) === JSON.stringify(['Panel', 'Agenda', 'Solicitudes', 'Mi Equipo', 'Más']), 'Coordinación: barra inferior Panel · Agenda · Solicitudes · Mi Equipo · Más');
   const conectados = await coord.page.locator('text=Profesionales conectados').locator('xpath=..').innerText();
   const real = (await (await fetch(`${BASE}/api/salud`)).json()).ok;
   check(/\d|—/.test(conectados) && real, `Coordinación: indicadores con datos reales del sistema («${conectados.replace(/\s+/g, ' ')}»)`);

@@ -554,7 +554,7 @@ function Escena({ presencia, seleccionado, onSelect, onZona, foco, reducirMovimi
         </mesh>
       </group>
 
-      {/* Psicología Clínica: seis estaciones */}
+      {/* Psicología Clínica: siete estaciones */}
       {Object.entries(ESTACIONES_PSI).map(([k, [x, z]]) => (
         <Estacion key={k} x={x} z={z} m={m} tex={trabajo} encendida={presencia.some((p) => p.estacion === k && p.conectado && p.zona === 'estacion')} />
       ))}

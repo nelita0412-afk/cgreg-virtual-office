@@ -11,7 +11,7 @@ import { tonoAtencion, tonoPrioridad, tonoSolicitud, DERIVACION_ACTIVA } from '.
 import { Badge, ErrorMsg } from '../components/ui';
 import { SolicitarApoyoModal } from '../components/SolicitarApoyo';
 import { AvisoNotificacionesPush } from '../components/AppMovil';
-import { can } from '@shared/permissions';
+import { puede } from '@shared/permissions';
 import {
   ESTADO_ATENCION_LABEL, ESTADO_DERIVACION_LABEL, ESTADO_PRESENCIA_COLOR, ESTADO_PRESENCIA_LABEL, ESTADO_SOLICITUD_LABEL, ESTADOS_MANUALES, PRIORIDAD_LABEL, ROL_LABEL,
   type EstadoAtencion, type EstadoDerivacion, type EstadoPresencia, type EstadoSolicitud, type PresenciaSnapshot,
@@ -64,9 +64,9 @@ function MiEstado() {
   const { me } = useAuth();
   const qc = useQueryClient();
   const [error, setError] = useState<unknown>(null);
-  const puede = can(me?.rol, 'presencia.propia');
-  const pres = useQuery<PresenciaSnapshot[]>({ queryKey: ['presencia'], queryFn: () => api.get('/api/office/presencia'), enabled: puede, refetchInterval: 60_000 });
-  if (!puede) return null;
+  const registra = puede(me, 'presencia.propia');
+  const pres = useQuery<PresenciaSnapshot[]>({ queryKey: ['presencia'], queryFn: () => api.get('/api/office/presencia'), enabled: registra, refetchInterval: 60_000 });
+  if (!registra) return null;
   const yo = pres.data?.find((p) => p.usuario_id === me?.id);
   const actual = yo?.estado;
   const automatico = actual && !ESTADOS_MANUALES.includes(actual);
@@ -204,7 +204,7 @@ function DiaProfesional() {
   const agenda = useQuery<any[]>({ queryKey: ['agenda', 'hoy', desde], queryFn: () => api.get(`/api/agenda?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`), refetchInterval: 60_000 });
   const seguimientos = useQuery<any[]>({ queryKey: ['seguimientos', 'pendiente'], queryFn: () => api.get('/api/seguimientos?estado=pendiente') });
   const solicitudes = useQuery<any[]>({ queryKey: ['solicitudes', 'abiertas'], queryFn: () => api.get('/api/solicitudes?filtro=abiertas') });
-  const derivaciones = useQuery<any[]>({ queryKey: ['derivaciones'], queryFn: () => api.get('/api/derivaciones'), enabled: can(me?.rol, 'derivaciones.crear') });
+  const derivaciones = useQuery<any[]>({ queryKey: ['derivaciones'], queryFn: () => api.get('/api/derivaciones'), enabled: puede(me, 'derivaciones.crear') });
 
   const citas = (agenda.data ?? []).filter((c) => c.estado !== 'reprogramada');
   const siguiente = citas.find((c) => ['programada', 'confirmada', 'en_atencion'].includes(c.estado) && new Date(c.fin) > new Date());
@@ -425,7 +425,7 @@ function DiaInstitucional() {
     { label: 'Mis solicitudes', icono: <Inbox size={20} />, to: '/solicitudes', perm: 'solicitudes.crear' as const },
     { label: 'Servidores', icono: <ClipboardList size={20} />, to: '/servidores', perm: 'servidores.ver_asignados' as const },
     { label: 'Reportes', icono: <HeartPulse size={20} />, to: '/reportes', perm: 'reportes.ver' as const },
-  ].filter((a) => can(me?.rol, a.perm));
+  ].filter((a) => puede(me, a.perm));
   return (
     <>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

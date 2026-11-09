@@ -70,9 +70,13 @@ BASE=cgreg_demo_prueba_20261108 ./scripts/demo/probar-en-mac.sh
 ## Usuarios de prueba (contraseña `Demo-CGREG-2026`)
 | Perfil | Correo |
 |---|---|
-| Coordinación | coordinacion@demo.cgreg |
-| Profesional con atención en curso (registro por pasos) | hugo@demo.cgreg |
-| Profesional con borrador por validar | demetrio@demo.cgreg |
-| Profesional | gabriel@demo.cgreg |
-| Autoridad | autoridad@demo.cgreg |
-| Administración | admin@demo.cgreg |
+| Coordinadora (Coordinación General + Trabajo Social) | marianella.becerra@demo.cgreg |
+| Coordinación General (cuenta genérica de demostración) | coordinacion@demo.cgreg |
+| Salud Mental con atención en curso (registro por pasos) | hugo@demo.cgreg |
+| Salud Mental | gabriel@demo.cgreg · sofia@demo.cgreg · betsabe@demo.cgreg · maria@demo.cgreg · sally@demo.cgreg |
+| Salud Mental + función territorial | andrea@demo.cgreg |
+| Psiquiatría | diego@demo.cgreg |
+| Apoyo Epidemiológico y Territorial | demetrio@demo.cgreg |
+| Autoridad · Auditoría · Administración | autoridad@demo.cgreg · auditoria@demo.cgreg · admin@demo.cgreg |
+
+La primera vez la carga de datos tarda un par de minutos más: la plataforma limita los ingresos por minuto y el script lo respeta.

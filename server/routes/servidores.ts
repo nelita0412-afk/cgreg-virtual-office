@@ -1,3 +1,4 @@
+import { ejerceTerritorial } from '@shared/permissions';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppCtx } from '../context';
@@ -116,7 +117,11 @@ export function servidoresRoutes(app: FastifyInstance, ctx: AppCtx) {
     const b = parse(z.object({ profesional_id: z.string() }), req.body);
     await tx(db, async (c) => {
       const p = (await c.query(`select nombre, especialidad, es_teleatencion from core.profesionales where id = $1`, [b.profesional_id])).rows[0];
-      if (!p || p.especialidad === 'psiquiatria' || (!p.es_teleatencion && p.especialidad !== 'trabajo_social')) throw forbidden('Psiquiatría recibe servidores únicamente mediante derivación.');
+      if (!p) throw forbidden('Profesional no encontrado.');
+      if (p.especialidad === 'psiquiatria') throw forbidden('Psiquiatría recibe servidores únicamente mediante derivación.');
+      // Apoyo Epidemiológico y Territorial no lleva casos individuales (sin acceso clínico por defecto).
+      if (p.especialidad === 'epidemiologia') throw forbidden('El Apoyo Epidemiológico y Territorial no recibe casos individuales.');
+      if (p.especialidad === 'telemedicina' && !p.es_teleatencion) throw forbidden('El profesional no atiende por teleatención.');
       await c.query(
         `insert into ops.asignaciones (servidor_id, profesional_id, asignada_por) select $1,$2,$3 where not exists (select 1 from ops.asignaciones where servidor_id=$1 and profesional_id=$2 and activa)`,
         [id, b.profesional_id, user.id],
@@ -209,7 +214,8 @@ export function servidoresRoutes(app: FastifyInstance, ctx: AppCtx) {
     const user = u(req);
     const { id } = req.params as { id: string };
     const b = parse(z.object({ categoria: z.enum(CATEGORIAS_NECESIDAD), descripcion: z.string().trim().min(3).max(500) }), req.body);
-    if (user.rol !== 'territorial') await exigirAsignacion(db, user, id);
+    // Función territorial (rol base o complementaria): registra necesidades detectadas en territorio.
+    if (!ejerceTerritorial(user)) await exigirAsignacion(db, user, id);
     const r = await db.query(`insert into ops.necesidades (servidor_id, categoria, descripcion, registrada_por) values ($1,$2,$3,$4) returning id`, [id, b.categoria, b.descripcion, user.id]);
     await audit(db, user, 'necesidad.registrada', 'necesidad', r.rows[0].id, { categoria: b.categoria }, req.ip);
     await ctx.bus.emit(db, { tipo: 'necesidad.registrada', topic: 'necesidades', actor: user.id });

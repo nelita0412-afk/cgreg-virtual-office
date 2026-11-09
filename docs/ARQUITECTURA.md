@@ -123,3 +123,12 @@ Pausa (manual) ─────► «En pausa» → zona de pausa
 - **Push de prueba**: `POST /api/push/prueba` (5 cada 10 min) envía solo a las suscripciones de quien lo pide.
 - **Pruebas E2E del push**: el modo *headless shell* de Playwright niega las notificaciones; `e2e/app-movil.mjs` usa Chromium completo sin ventana y entrega el mensaje al service worker por CDP.
 
+## Roles, funciones y directorio de la Brigada (migración 007)
+
+- **Permisos efectivos** = rol base ∪ funciones complementarias activas (`core.usuario_funciones`). `SessionUser.funciones` se carga con la sesión; `requirePerm` usa `puede()` y audita cada denegación (`acceso.denegado`).
+- **Rol `epidemiologia`** y especialidad `epidemiologia`: Oficina, indicadores agregados, territorio y solicitudes; sin casos individuales ni historias.
+- **Coordinación + Trabajo Social**: `nivelAcceso` devuelve `social` en los casos asignados al registro de la Coordinadora (con los metadatos administrativos) y `administrativo` en el resto.
+- **Directorio**: columnas `funcion_brigada`, `instituciones` (descriptivas), `en_directorio`, `nota_directorio`. `GET /api/directorio` y `/api/profesionales` sin `equipo.ver` devuelven la ficha limitada; `/api/profesionales/:id/panel` también.
+- **Oficina**: `oficina.entrar` protege `/api/office/presencia`, `/api/office/eventos` y el envío de presencia por WebSocket; los perfiles sin Oficina entran a su panel (`/comando`, `/auditoria`, `/configuracion`). Siete puestos de Psicología (7,75 m entre centros).
+- **Administración**: `GET /api/admin/registros-directorio`, `POST /api/admin/usuarios/:id/vincular` (no reasigna), `POST /api/admin/usuarios/:id/funciones` y `.../funciones/:funcion/revocar` (con motivo).
+

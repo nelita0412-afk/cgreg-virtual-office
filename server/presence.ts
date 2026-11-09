@@ -16,6 +16,7 @@ const zonaConsulta: Record<Especialidad, Zona> = {
   telemedicina: 'telemedicina',
   psiquiatria: 'psiquiatria',
   trabajo_social: 'estacion',
+  epidemiologia: 'estacion',
 };
 
 export function zonaBase(rol: Rol, profesionalId: string | null): Zona {
@@ -200,7 +201,8 @@ export class PresenceService {
       union all
       select null, u.nombre, split_part(u.nombre, ' ', 1), null, null, false, null, null, u.id, u.rol, pr.conectado, pr.estado, pr.zona, pr.desde, 100
         from core.usuarios u left join ops.presencia pr on pr.usuario_id = u.id
-       where u.activo and u.profesional_id is null and u.rol in ('coordinacion','territorial')
+       where u.activo and u.rol in ('coordinacion','territorial')
+         and (u.profesional_id is null or u.profesional_id in (select id from core.profesionales where especialidad = 'trabajo_social'))
       order by orden`);
     return filas.rows.map((f) => {
       const ivs = f.profesional_id

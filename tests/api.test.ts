@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { BuiltApp } from '../server/app';
-import { client, crearUsuario, insertarServidor, loginCookie, proximoHabilGalapagos, resetDb, testApp } from './helpers';
+import { client, crearMedicoPrueba, crearUsuario, insertarServidor, loginCookie, proximoHabilGalapagos, resetDb, testApp } from './helpers';
 
 let b: BuiltApp;
 let coord: ReturnType<typeof client>;
@@ -16,7 +16,8 @@ beforeAll(async () => {
   await resetDb();
   b = await testApp();
   await crearUsuario(b, 'coord@test.ec', 'coordinacion');
-  await crearUsuario(b, 'demetrio@test.ec', 'profesional', 'demetrio-magallanes');
+  await crearMedicoPrueba(b);
+  await crearUsuario(b, 'demetrio@test.ec', 'profesional', 'medico-prueba');
   await crearUsuario(b, 'gabriel@test.ec', 'profesional', 'gabriel-ordonez');
   await crearUsuario(b, 'diego@test.ec', 'profesional', 'diego-estrella');
   await crearUsuario(b, 'autoridad@test.ec', 'autoridad');
@@ -33,16 +34,26 @@ beforeAll(async () => {
 afterAll(async () => b?.close());
 
 describe('Registro de profesionales', () => {
-  it('hay 8 profesionales de teleatención y una colaboradora territorial', async () => {
+  it('directorio oficial de la Brigada: nombres completos, funciones y registros separados', async () => {
     const r = await coord.get('/api/profesionales');
     expect(r.status).toBe(200);
-    expect(r.body.filter((p: any) => p.es_teleatencion)).toHaveLength(8);
-    const andrea = r.body.find((p: any) => p.id === 'andrea-mayorga');
-    expect(andrea.es_teleatencion).toBe(false);
-    expect(r.body.find((p: any) => p.id === 'zally-pamela').nombre).toBe('Zally Pamela');
-    const diegoP = r.body.find((p: any) => p.id === 'diego-estrella');
-    expect(diegoP.disponibilidad_origen).toHaveLength(0); // sin horarios inventados
-    const mar = r.body.find((p: any) => p.id === 'maria-alcivar').disponibilidad_institucional;
+    const de = (id: string) => r.body.find((p: any) => p.id === id);
+    // Teleatención clínica: Psicología (Gabriel, María, Hugo, Sofía, Betsabé, Sally y el registro previo de Zally) y Psiquiatría.
+    expect(r.body.filter((p: any) => p.es_teleatencion && p.id !== 'medico-prueba').map((p: any) => p.id).sort()).toEqual(
+      ['betsabe-cordova', 'diego-estrella', 'gabriel-ordonez', 'hugo-cuenca', 'maria-alcivar', 'sally-tinizaray', 'sofia-guerra', 'zally-pamela'].sort(),
+    );
+    expect(de('gabriel-ordonez').nombre).toBe('Gabriel Alexander Ordóñez Guzmán');
+    expect(de('hugo-cuenca')).toMatchObject({ nombre: 'Hugo Xavier Cuenca Guerrero', especialidad: 'psicologia', funcion_brigada: 'Profesional de Salud Mental' });
+    expect(de('diego-estrella')).toMatchObject({ nombre: 'Diego Estrella Almeida', especialidad: 'psiquiatria', funcion_brigada: 'Psiquiatría' });
+    expect(de('demetrio-magallanes')).toMatchObject({ especialidad: 'epidemiologia', es_teleatencion: false, funcion_brigada: 'Apoyo Epidemiológico y Territorial' });
+    expect(de('demetrio-magallanes').instituciones).toEqual(['IESS', 'Corporación Kimirina']); // descriptivas, no otorgan permisos
+    expect(de('andrea-mayorga')).toMatchObject({ especialidad: 'psicologia', funcion_brigada: 'Profesional de Salud Mental · Función territorial' });
+    // Sally es un registro propio; el registro previo de Zally se conserva intacto, fuera del directorio oficial.
+    expect(de('sally-tinizaray')).toMatchObject({ nombre: 'Sally Tinizaray Soriano', especialidad: 'psicologia', en_directorio: true });
+    expect(de('zally-pamela')).toMatchObject({ nombre: 'Zally Pamela', en_directorio: false });
+    expect(de('marianella-becerra')).toMatchObject({ nombre: 'Lic. Marianella del Cisne Becerra Hernández, Espc.', especialidad: 'trabajo_social', funcion_brigada: 'Coordinación General · Trabajo Social' });
+    expect(de('diego-estrella').disponibilidad_origen).toHaveLength(0); // sin horarios inventados
+    const mar = de('maria-alcivar').disponibilidad_institucional;
     expect(mar.find((d: any) => d.dia_semana === 2).rangos).toEqual(['13:15–16:00']);
   });
 });
@@ -82,19 +93,19 @@ describe('Agenda y atenciones (telemedicina)', () => {
   const inicio = proximoHabilGalapagos('18:00');
 
   it('Coordinación asigna y programa dentro de la disponibilidad', async () => {
-    const r = await coord.post('/api/agenda/citas', { servidor_id: servidorA, profesional_id: 'demetrio-magallanes', inicio, duracion_min: 30 });
+    const r = await coord.post('/api/agenda/citas', { servidor_id: servidorA, profesional_id: 'medico-prueba', inicio, duracion_min: 30 });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     citaId = r.body.id;
   });
   it('impide citas duplicadas en el mismo horario', async () => {
-    const r = await coord.post('/api/agenda/citas', { servidor_id: servidorB, profesional_id: 'demetrio-magallanes', inicio, duracion_min: 20 });
+    const r = await coord.post('/api/agenda/citas', { servidor_id: servidorB, profesional_id: 'medico-prueba', inicio, duracion_min: 20 });
     expect(r.status).toBe(409);
   });
   it('rechaza horarios fuera de la disponibilidad y duraciones inválidas', async () => {
     const fuera = proximoHabilGalapagos('10:00');
-    expect((await coord.post('/api/agenda/citas', { servidor_id: servidorB, profesional_id: 'demetrio-magallanes', inicio: fuera, duracion_min: 30 })).status).toBe(400);
+    expect((await coord.post('/api/agenda/citas', { servidor_id: servidorB, profesional_id: 'medico-prueba', inicio: fuera, duracion_min: 30 })).status).toBe(400);
     const dentro = proximoHabilGalapagos('19:00');
-    expect((await coord.post('/api/agenda/citas', { servidor_id: servidorB, profesional_id: 'demetrio-magallanes', inicio: dentro, duracion_min: 45 })).status).toBe(400);
+    expect((await coord.post('/api/agenda/citas', { servidor_id: servidorB, profesional_id: 'medico-prueba', inicio: dentro, duracion_min: 45 })).status).toBe(400);
   });
   it('exige consentimiento antes de iniciar', async () => {
     const r = await demetrio.post(`/api/atenciones/${citaId}/iniciar`);
@@ -105,20 +116,20 @@ describe('Agenda y atenciones (telemedicina)', () => {
     expect((await demetrio.post(`/api/servidores/${servidorA}/consentimientos`, { tipo: 'teleatencion', base_legitimacion: 'consentimiento', otorgado: true, canal: 'videollamada' })).status).toBe(200);
     // Sin conexión real no se representa presencia
     await demetrio.post(`/api/atenciones/${citaId}/iniciar`);
-    let snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'demetrio-magallanes');
+    let snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'medico-prueba');
     expect(snap.conectado).toBe(false);
     expect(snap.estado).not.toBe('en_consulta');
     // Simula una conexión real (lo que hace el WebSocket) y verifica recuperación de estado
     const uid = (await b.ctx.db.query(`select id from core.usuarios where email = 'demetrio@test.ec'`)).rows[0].id;
     await b.presence.conectar(uid);
-    snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'demetrio-magallanes');
+    snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'medico-prueba');
     expect(snap.estado).toBe('en_consulta');
     expect(snap.zona).toBe('telemedicina');
     expect((await demetrio.post(`/api/atenciones/${citaId}/finalizar`)).status).toBe(200);
-    snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'demetrio-magallanes');
+    snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'medico-prueba');
     expect(snap.estado).toBe('en_documentacion');
     expect((await demetrio.put(`/api/atenciones/${citaId}/nota`, { resumen: 'Nota clínica de prueba', plan: 'Control' })).status).toBe(200);
-    snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'demetrio-magallanes');
+    snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'medico-prueba');
     expect(snap.estado).toBe('disponible');
   });
   it('la nota clínica está cifrada en reposo y solo la ve su autor', async () => {
@@ -137,7 +148,7 @@ describe('Agenda y atenciones (telemedicina)', () => {
   it('el heartbeat vencido desconecta al profesional', async () => {
     await b.ctx.db.query(`update ops.presencia set ultimo_heartbeat = now() - interval '10 minutes'`);
     expect(await b.presence.barrer(45)).toBeGreaterThan(0);
-    const snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'demetrio-magallanes');
+    const snap = (await coord.get('/api/office/presencia')).body.find((s: any) => s.profesional_id === 'medico-prueba');
     expect(snap.conectado).toBe(false);
   });
 });
@@ -236,7 +247,8 @@ describe('Indicadores y auditoría', () => {
     const r = await coord.get('/api/dashboard/indicadores');
     expect(r.body.personas.registrados).toBe(3);
     expect(r.body.personas.atenciones_realizadas).toBe(2);
-    expect(r.body.equipo.registrados).toBe(8);
+    const tele = (await b.ctx.db.query(`select count(*)::int as n from core.profesionales where es_teleatencion and activo`)).rows[0].n;
+    expect(r.body.equipo.registrados).toBe(tele);
     expect(r.body.derivaciones.find((d: any) => d.estado === 'programada').n).toBe(1);
   });
   it('el auditor consulta la trazabilidad', async () => {

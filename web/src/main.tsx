@@ -3,19 +3,20 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './styles.css';
-import { AuthProvider, useAuth } from './lib/auth';
+import { AuthProvider, useAuth, type Me } from './lib/auth';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import Login, { CambiarPassword } from './pages/Login';
 import Oficina from './pages/Oficina';
 import { SolicitarAtencion, FirmarConsentimiento, ConsultarEstado } from './pages/Publico';
-import { can, type Permiso } from '@shared/permissions';
+import { puede, type Permiso } from '@shared/permissions';
 import { ApiError } from './lib/api';
 import { registrarServiceWorker, useEnLinea, useEsMovil } from './lib/pwa';
 import { WifiOff } from 'lucide-react';
 
 const Comando = lazy(() => import('./pages/Comando'));
 const Equipo = lazy(() => import('./pages/Equipo'));
+const Directorio = lazy(() => import('./pages/Directorio'));
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Servidores = lazy(() => import('./pages/Servidores'));
 const ServidorDetalle = lazy(() => import('./pages/ServidorDetalle'));
@@ -52,9 +53,17 @@ const qc = new QueryClient({
   },
 });
 
+/** Portada de los perfiles sin Oficina Virtual: cada uno entra a su panel. */
+function portadaSinOficina(me: Me | null) {
+  if (puede(me, 'indicadores.agregados')) return '/comando';
+  if (puede(me, 'auditoria.ver') && !puede(me, 'usuarios.gestionar')) return '/auditoria';
+  if (puede(me, 'usuarios.gestionar')) return '/configuracion';
+  return '/inicio';
+}
+
 function Guard({ perm, children }: { perm: Permiso[]; children: React.ReactNode }) {
   const { me } = useAuth();
-  if (!perm.some((p) => can(me?.rol, p))) return <div className="p-6 text-sm muted">No tiene permisos para acceder a este módulo.</div>;
+  if (!perm.some((p) => puede(me, p))) return <div className="p-6 text-sm muted">No tiene permisos para acceder a este módulo.</div>;
   return <>{children}</>;
 }
 
@@ -106,9 +115,21 @@ function App() {
     <Routes>
       <Route element={<Layout />}>
         {/* En el teléfono la portada es «Mi día»; en escritorio, la oficina virtual 3D. */}
-        <Route index element={movil ? <Suspense fallback={<Spinner />}><Inicio /></Suspense> : <Oficina />} />
+        <Route
+          index
+          element={
+            !puede(me, 'oficina.entrar') ? (
+              <Navigate to={portadaSinOficina(me)} replace />
+            ) : movil ? (
+              <Suspense fallback={<Spinner />}><Inicio /></Suspense>
+            ) : (
+              <Oficina />
+            )
+          }
+        />
         <Route path="inicio" element={g(['oficina.ver'], <Inicio />)} />
-        <Route path="oficina" element={<Oficina />} />
+        <Route path="oficina" element={g(['oficina.entrar'], <Oficina />)} />
+        <Route path="directorio" element={g(['directorio.ver'], <Directorio />)} />
         <Route path="comando" element={g(['indicadores.agregados'], <Comando />)} />
         <Route path="equipo" element={g(['equipo.ver'], <Equipo />)} />
         <Route path="agenda" element={g(['agenda.ver_todas', 'agenda.propia'], <Agenda />)} />

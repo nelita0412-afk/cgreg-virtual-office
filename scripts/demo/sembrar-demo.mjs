@@ -25,14 +25,33 @@ const usuarios = [
   ['hugo@demo.cgreg', null, 'profesional', 'hugo-cuenca'],
   ['sofia@demo.cgreg', null, 'profesional', 'sofia-guerra'],
   ['betsabe@demo.cgreg', null, 'profesional', 'betsabe-cordova'],
+  // Registro previo que no figura en el directorio oficial: su cuenta se conserva tal cual (no se reasigna ni se fusiona).
   ['zally@demo.cgreg', null, 'profesional', 'zally-pamela'],
-  ['demetrio@demo.cgreg', null, 'profesional', 'demetrio-magallanes'],
+  // Sally Tinizaray Soriano: cuenta propia, vinculada solo a su registro.
+  ['sally@demo.cgreg', null, 'profesional', 'sally-tinizaray'],
+  // Apoyo Epidemiológico y Territorial: sin permisos clínicos por defecto.
+  ['demetrio@demo.cgreg', null, 'epidemiologia', 'demetrio-magallanes'],
   ['diego@demo.cgreg', null, 'profesional', 'diego-estrella'],
-  ['andrea@demo.cgreg', null, 'territorial', 'andrea-mayorga'],
+  // Psicóloga con función territorial adicional (la función se suma abajo; no reemplaza la Psicología).
+  ['andrea@demo.cgreg', null, 'profesional', 'andrea-mayorga'],
+  // Coordinadora de la Brigada: Coordinación General + función Trabajo Social en una sola cuenta.
+  ['marianella.becerra@demo.cgreg', null, 'coordinacion', 'marianella-becerra'],
 ];
+// Las cuentas existentes no se modifican (on conflict do nothing): el cambio de rol de cuentas previas lo hace la
+// migración 007, de forma explícita y auditada.
 const hash = await bcrypt.hash(PASS, 10);
 for (const [e, n, r, p] of usuarios)
   await db.query(`insert into core.usuarios (email,nombre,rol,profesional_id,password_hash,debe_cambiar_password) values ($1, coalesce($2,(select nombre from core.profesionales where id=$4)), $3,$4,$5,false) on conflict do nothing`, [e, n, r, p, hash]);
+// Funciones complementarias de demostración (con motivo, como lo exige Administración).
+for (const [email, funcion, motivo] of [
+  ['marianella.becerra@demo.cgreg', 'trabajo_social', 'DEMO · Coordinadora que ejerce Trabajo Social (ficticio)'],
+  ['andrea@demo.cgreg', 'territorial', 'DEMO · Psicóloga con función territorial (ficticio)'],
+])
+  await db.query(
+    `insert into core.usuario_funciones (usuario_id, funcion, motivo)
+     select u.id, $2, $3 from core.usuarios u where lower(u.email) = $1 and u.profesional_id is not null on conflict do nothing`,
+    [email, funcion, motivo],
+  );
 
 const nombres = ['Ana Lucía Ficticia Uno','Bruno Ejemplo Dos','Carla Prueba Tres','Diego Demo Cuatro','Elena Muestra Cinco','Fabián Ficticio Seis','Gloria Ejemplo Siete','Héctor Prueba Ocho','Inés Demo Nueve','Jorge Muestra Diez','Karla Ficticia Once','Luis Ejemplo Doce'];
 const S = {};
@@ -45,7 +64,14 @@ for (let i = 0; i < 12; i++) {
 }
 
 async function login(email) {
-  const r = await fetch(`${B}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: PASS }) });
+  let r;
+  for (let intento = 0; ; intento++) {
+    r = await fetch(`${B}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: PASS }) });
+    // La plataforma limita los ingresos por minuto y dirección: se respeta el límite y se reintenta.
+    if (r.status !== 429 || intento >= 3) break;
+    log('  Límite de ingresos por minuto alcanzado (protección de la plataforma); esperando 61 s…');
+    await new Promise((x) => setTimeout(x, 61_000));
+  }
   if (!r.ok) throw new Error(`login ${email} ${r.status}`);
   const cookie = r.headers.get('set-cookie').split(';')[0];
   const call = async (m, u, b) => {
@@ -69,9 +95,9 @@ const gal = () => DateTime.now().setZone('Pacific/Galapagos');
 const proximo = (dias, hh, mm = 0) => { let d = gal().plus({ days: 1 }).set({ hour: hh, minute: mm, second: 0, millisecond: 0 }); while (!dias.includes(d.weekday)) d = d.plus({ days: 1 }); return d.toUTC().toISO(); };
 
 const U = {};
-for (const k of ['coordinacion', 'admin', 'gabriel', 'maria', 'hugo', 'sofia', 'betsabe', 'demetrio', 'diego']) U[k] = await login(`${k}@demo.cgreg`);
+for (const k of ['coordinacion', 'admin', 'gabriel', 'maria', 'hugo', 'sofia', 'betsabe', 'demetrio', 'diego', 'sally', 'marianella.becerra']) U[k] = await login(`${k}@demo.cgreg`);
 // Conexiones reales por WebSocket (avatares). Zally, Andrea y la coordinadora quedan sin conectar.
-for (const k of ['gabriel', 'maria', 'hugo', 'sofia', 'betsabe', 'demetrio', 'diego']) conectar(k, U[k].cookie);
+for (const k of ['gabriel', 'maria', 'hugo', 'sofia', 'betsabe', 'demetrio', 'diego', 'sally']) conectar(k, U[k].cookie);
 await new Promise((r) => setTimeout(r, 2500));
 const C = U.coordinacion;
 
@@ -80,7 +106,8 @@ if (!yaSembrado) {
   log('Sembrando datos ficticios…');
   for (const p of await U.admin.get('/api/consentimientos/plantillas'))
     if (p.estado === 'borrador') await U.admin.post(`/api/consentimientos/plantillas/${p.id}/aprobar`, { referencia: 'DEMO — aprobación ficticia, NO oficial' });
-  const asign = { 1: 'gabriel-ordonez', 2: 'gabriel-ordonez', 3: 'gabriel-ordonez', 4: 'maria-alcivar', 5: 'maria-alcivar', 6: 'hugo-cuenca', 7: 'sofia-guerra', 8: 'betsabe-cordova', 9: 'zally-pamela', 10: 'demetrio-magallanes' };
+  // Casos individuales solo para quien interviene con la persona (Demetrio, epidemiológico, no lleva casos).
+  const asign = { 1: 'gabriel-ordonez', 2: 'gabriel-ordonez', 3: 'gabriel-ordonez', 4: 'maria-alcivar', 5: 'maria-alcivar', 6: 'hugo-cuenca', 7: 'sofia-guerra', 8: 'betsabe-cordova', 9: 'zally-pamela', 10: 'sally-tinizaray', 12: 'andrea-mayorga' };
   for (const [n, p] of Object.entries(asign)) await C.post(`/api/servidores/${S[n].id}/asignaciones`, { profesional_id: p });
   // Consentimientos electrónicos (firma ficticia por la página pública)
   const consentir = async (pro, n, servicio) => {
@@ -89,7 +116,7 @@ if (!yaSembrado) {
     await pub('POST', `/api/publico/consentimiento/${tok}`, { nombre_completo: S[n].nombre.replace('DEMO · ', ''), identificador: S[n].cod, lectura_confirmada: true, acepta: true });
     await pro.post(`/api/consentimientos/${s.id}/validar`, { resultado: 'validado' });
   };
-  await consentir(U.gabriel, 1, 'psicologia'); await consentir(U.gabriel, 2, 'psicologia'); await consentir(U.hugo, 6, 'psicologia'); await consentir(U.demetrio, 10, 'telemedicina');
+  await consentir(U.gabriel, 1, 'psicologia'); await consentir(U.gabriel, 2, 'psicologia'); await consentir(U.hugo, 6, 'psicologia'); await consentir(U.sally, 10, 'psicologia');
   // Consentimiento firmado a mano (PDF ficticio) pendiente de validación; otro electrónico pendiente
   const m = await U.gabriel.post(`/api/servidores/${S[3].id}/consentimientos/solicitar`, { modalidad: 'firmada_manual', servicio: 'psicologia' });
   await fetch(`${B}/api/consentimientos/${m.id}/documento?nombre=DEMO-consentimiento-ficticio.pdf`, { method: 'POST', headers: { cookie: U.gabriel.cookie, 'x-cgreg': '1', 'content-type': 'application/pdf' }, body: Buffer.from('%PDF-1.4\n% DOCUMENTO FICTICIO DE DEMOSTRACION\n%%EOF') });
@@ -107,14 +134,15 @@ if (!yaSembrado) {
   };
   await atender(U.gabriel, 'gabriel-ordonez', 1, { resumen: 'DEMO · Primera sesión de acompañamiento (contenido ficticio).', motivo_consulta: 'DEMO · Malestar tras la emergencia (ficticio).', intervencion: 'Primeros auxilios psicológicos (ejemplo).', plan: 'Seguimiento en una semana.' });
   await atender(U.gabriel, 'gabriel-ordonez', 2, { resumen: 'DEMO · Valoración inicial (contenido ficticio).', plan: 'Derivar a valoración psiquiátrica (ejemplo).' });
-  await atender(U.demetrio, 'demetrio-magallanes', 10, { resumen: 'DEMO · Teleconsulta médica (contenido ficticio).', recomendaciones: 'Hidratación y control (ejemplo).' }, false);
+  await atender(U.sally, 'sally-tinizaray', 10, { resumen: 'DEMO · Primera sesión con la familia (contenido ficticio).', recomendaciones: 'Pautas de acompañamiento (ejemplo).' }, false);
   await atender(U.hugo, 'hugo-cuenca', 6, null, false, false); // queda EN CONSULTA → avatar en consultorio
   await U.gabriel.post('/api/seguimientos', { servidor_id: S[1].id, fecha_programada: proximo([1, 3, 5], 6, 30), nota_operativa: 'DEMO · Seguimiento semanal' });
   // Citas futuras dentro de la disponibilidad real
   await C.post('/api/agenda/citas', { servidor_id: S[7].id, profesional_id: 'sofia-guerra', inicio: proximo([2, 4], 17, 15), duracion_min: 45 });
   await C.post('/api/agenda/citas', { servidor_id: S[9].id, profesional_id: 'zally-pamela', inicio: proximo([2, 4], 16, 30), duracion_min: 60 });
   await C.post('/api/agenda/citas', { servidor_id: S[3].id, profesional_id: 'gabriel-ordonez', inicio: proximo([1, 3, 5], 6, 0), duracion_min: 45 });
-  const c10 = await C.post('/api/agenda/citas', { servidor_id: S[10].id, profesional_id: 'demetrio-magallanes', inicio: proximo([1, 2, 3, 4, 5], 18, 30), duracion_min: 30 });
+  await C.post(`/api/servidores/${S[10].id}/asignaciones`, { profesional_id: 'hugo-cuenca' });
+  const c10 = await C.post('/api/agenda/citas', { servidor_id: S[10].id, profesional_id: 'hugo-cuenca', inicio: proximo([3], 17, 30), duracion_min: 45 });
   if (c10) await C.post(`/api/agenda/citas/${c10.id}/confirmar`);
   // Derivaciones a Psiquiatría
   const d1 = await U.gabriel.post('/api/derivaciones', { servidor_id: S[2].id, prioridad: 'alta', motivo: 'DEMO · Motivo clínico ficticio para la demostración del flujo de derivación.' });
@@ -149,9 +177,21 @@ if (!yaSembrado) {
   // Debriefing en curso y capacitación programada
   const deb = await C.post('/api/debriefings', { titulo: 'DEMO · Debriefing equipo territorial', facilitador_id: 'betsabe-cordova', grupo_destinatario: 'DEMO · Equipo DECE ficticio', inicio: DateTime.now().plus({ minutes: 1 }).toUTC().toISO(), fin: DateTime.now().plus({ hours: 3 }).toUTC().toISO(), participantes_previstos: 8 });
   await U.betsabe.post(`/api/debriefings/${deb.id}/iniciar`);
-  await C.post('/api/capacitaciones', { tema: 'primeros_auxilios_psicologicos', titulo: 'DEMO · Taller de primeros auxilios psicológicos', facilitador_id: 'zally-pamela', publico_objetivo: 'DEMO · Docentes ficticios', institucion: 'Unidad Educativa Ficticia', inicio: proximo([1, 2, 3, 4, 5], 9, 0), duracion_min: 90, participantes_previstos: 25 });
+  await C.post('/api/capacitaciones', { tema: 'primeros_auxilios_psicologicos', titulo: 'DEMO · Taller de primeros auxilios psicológicos', facilitador_id: 'sally-tinizaray', publico_objetivo: 'DEMO · Docentes ficticios', institucion: 'Unidad Educativa Ficticia', inicio: proximo([1, 2, 3, 4, 5], 9, 0), duracion_min: 90, participantes_previstos: 25 });
   log('Datos sembrados.');
 }
+// Brigada reorganizada (idempotente, también sobre una base demo ya sembrada): casos sociales de la Coordinadora y
+// caso de Andrea. Solo datos ficticios.
+const M = U['marianella.becerra'];
+const tieneAsignacion = async (n, pid) => (await db.query(`select 1 from ops.asignaciones where servidor_id = $1 and profesional_id = $2 and activa`, [S[n].id, pid])).rows[0];
+if (!(await tieneAsignacion(11, 'marianella-becerra'))) {
+  await C.post(`/api/servidores/${S[11].id}/asignaciones`, { profesional_id: 'marianella-becerra' });
+  await M.post(`/api/servidores/${S[11].id}/intervenciones-sociales`, { fecha: DateTime.now().toUTC().toISO(), tipo: 'valoracion_social', contenido: 'DEMO · Valoración social inicial: vivienda afectada y red familiar de apoyo (contenido ficticio).' });
+  await M.post(`/api/servidores/${S[11].id}/necesidades`, { categoria: 'vivienda', descripcion: 'DEMO · Gestión de apoyo habitacional con institución ficticia' });
+}
+if (!(await tieneAsignacion(12, 'andrea-mayorga'))) await C.post(`/api/servidores/${S[12].id}/asignaciones`, { profesional_id: 'andrea-mayorga' });
+log('Brigada: Coordinadora con casos sociales y Andrea con caso asignado.');
+
 // Estados manuales visibles en la oficina
 await U.sofia.post('/api/office/estado', { estado: 'en_pausa' });
 await U.maria.post('/api/office/estado', { estado: 'en_documentacion' });

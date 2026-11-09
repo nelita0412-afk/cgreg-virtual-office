@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Stethoscope, CalendarClock, BarChart3, ListChecks, LifeBuoy, ExternalLink } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { puede } from '@shared/permissions';
 import { Avatar, EstadoPill, Spinner, ErrorMsg } from './ui';
 import { SolicitarApoyoModal } from './SolicitarApoyo';
 import { ESPECIALIDAD_LABEL, ESTADOS_MANUALES, ESTADO_PRESENCIA_LABEL, ESTADO_PRESENCIA_COLOR, type PresenciaSnapshot } from '@shared/domain';
@@ -59,7 +60,7 @@ export function ProfesionalPanel({ seleccion }: { seleccion: PresenciaSnapshot |
             ))}
           </div>
           <div className="mt-2"><ErrorMsg error={err} /></div>
-          {(me?.rol === 'profesional' || me?.rol === 'territorial') && (
+          {puede(me, 'solicitudes.crear') && (
             <button className="btn-primary mt-3 w-full" onClick={() => setModal(true)}>
               <LifeBuoy size={16} /> Solicitar apoyo a Coordinación
             </button>
@@ -68,7 +69,8 @@ export function ProfesionalPanel({ seleccion }: { seleccion: PresenciaSnapshot |
       )}
 
       {pid && q.isLoading && <Spinner />}
-      {d && (
+      {d?.limitado && <FichaDirectorio p={d.profesional} />}
+      {d && !d.limitado && (
         <ul className="divide-y text-sm" style={{ borderColor: 'var(--line)' }}>
           <li className="flex gap-3 py-2.5" style={{ borderColor: 'var(--line)' }}>
             <CalendarDays size={18} className="mt-0.5 shrink-0 text-cyan-300" />
@@ -119,13 +121,35 @@ export function ProfesionalPanel({ seleccion }: { seleccion: PresenciaSnapshot |
           </li>
         </ul>
       )}
-      {pid && d?.profesional.es_teleatencion && (
+      {pid && !d?.limitado && d?.profesional.es_teleatencion && (
         <div className="flex gap-2">
           <Link to={`/agenda?profesional=${pid}`} className="btn-primary flex-1"><CalendarDays size={16} /> Ver agenda</Link>
           <Link to={`/equipo#${pid}`} className="btn-ghost" aria-label="Ficha profesional"><ExternalLink size={16} /></Link>
         </div>
       )}
       <SolicitarApoyoModal open={modal} onClose={() => setModal(false)} />
+    </div>
+  );
+}
+
+/**
+ * Ficha de consulta limitada (sin «Mi Equipo»): identidad profesional y función en la Brigada.
+ * El estado operativo ya se ve en el encabezado; no se muestran casos, cargas ni estadísticas individuales.
+ */
+function FichaDirectorio({ p }: { p: any }) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border p-3 text-sm" style={{ borderColor: 'var(--line)' }}>
+      {p.funcion_brigada && <div className="text-xs font-semibold uppercase tracking-wide text-salvia-700">{p.funcion_brigada}</div>}
+      <p className="leading-relaxed">{p.perfil}</p>
+      {p.experiencia?.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5" aria-label="Experiencia">
+          {p.experiencia.map((x: string) => (
+            <li key={x} className="rounded-full bg-eucalipto px-2.5 py-0.5 text-[12px] text-profundo-800">{x}</li>
+          ))}
+        </ul>
+      )}
+      {p.instituciones?.length > 0 && <div className="text-xs muted">Vinculación institucional: {p.instituciones.join(' · ')}</div>}
+      <Link to="/directorio" className="btn-ghost btn-sm mt-1 self-start">Ver directorio</Link>
     </div>
   );
 }

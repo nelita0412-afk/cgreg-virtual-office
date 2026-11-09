@@ -104,6 +104,23 @@ Sin cambios en el backend (Fastify/PostgreSQL), las migraciones ni los módulos 
 - **Claves VAPID de producción** y **HTTPS**: el push no se activa sin ellas. Las claves del entorno de demostración no sirven para producción.
 - **Prueba en teléfonos reales** (iPhone con la app instalada, Android): la entrega real por los servicios de Apple/Google no puede probarse desde el entorno de pruebas.
 
+## Brigada: roles, funciones y directorio (noviembre 2026)
+
+### Implementado y verificado
+- Matriz de mínimo privilegio con **funciones complementarias** combinables y auditadas (una persona, una cuenta). Ver `docs/ROLES-Y-PERMISOS.md`.
+- Coordinadora: Coordinación General + Trabajo Social en la misma cuenta; nivel social solo en sus casos asignados; sin notas clínicas por su cargo ni administración técnica.
+- Directorio oficial (migración 007): nombres completos, profesión, experiencia y función; Sally Tinizaray como registro propio; Demetrio como Apoyo Epidemiológico y Territorial (rol nuevo, sin acceso clínico); Andrea, Psicología + función territorial.
+- «Mi Equipo» solo para Coordinación (o función de gestión operativa). Directorio de consulta limitada para el resto. La ficha del avatar en la Oficina es limitada. La presencia en tiempo real solo llega a quien entra a la Oficina.
+- Navegación y portada por perfil. Administración, Autoridad y Auditoría sin Oficina ni datos individuales.
+- Administración: funciones y vínculos con el directorio, con motivo obligatorio; los vínculos no se reasignan.
+- Pruebas: `tests/brigada.test.ts` (12 casos contra la API + tiempo real), `e2e/brigada.mjs` (interfaz por perfil), `scripts/demo/verificar-permisos.ts` (cuentas demo).
+
+### Pendiente o requiere decisión
+- **Registro «Zally Pamela»**: no figura en el directorio oficial; se conservó intacto (cuenta, citas e historias) fuera del directorio. La Coordinación debe confirmar si es otra persona o un registro erróneo.
+- **Cuenta real de la Coordinadora**: en producción, Administración debe vincular su cuenta al registro `marianella-becerra` y otorgarle la función Trabajo Social (Configuración → Usuarios → Funciones).
+- **Horarios** de Sally Tinizaray y, si hará teleatención, de Andrea: no se inventaron.
+- **Telemedicina clínica**: tras la reorganización no hay médico de teleatención en el directorio. Las atenciones y registros previos de Demetrio se conservan, pero él ya no accede a ellos. Si deben continuar, la Coordinación puede reasignar esos casos.
+
 ## Funcionalidad previa (se conserva)
 
 Oficina virtual 3D con avatares por eventos reales, presencia por WebSocket, agenda con conversión horaria y bloqueo de choques, atenciones, derivaciones a Psiquiatría, Mis Solicitudes y Gestiones, Debriefing, Capacitación DECE, Articulación territorial, Reportes, Auditoría y roles. Verificado por las 37 pruebas y las 10 comprobaciones E2E originales.

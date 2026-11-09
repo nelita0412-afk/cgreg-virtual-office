@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { SheetsClient } from '../server/sheets/client';
 import { loadConfig } from '../server/config';
 import type { BuiltApp } from '../server/app';
-import { client, crearUsuario, loginCookie, resetDb, testApp } from './helpers';
+import { client, crearMedicoPrueba, crearUsuario, loginCookie, resetDb, testApp } from './helpers';
 
 /* ---------- Simulación de Google Sheets (pestañas «Personal» y «Valoraciones») ---------- */
 const H_PERSONAL = ['ID_Distributivo', 'Nombres_Apellidos', 'Cargo', 'Regimen_Laboral', 'Unidad_Organica', 'Estado_Distributivo', 'Contacto_Validado', 'Encuesta_Recibida', 'Prioridad_Social', 'Ultimo_Contacto', 'Observacion_Administrativa'];
@@ -82,12 +82,13 @@ beforeAll(async () => {
   await resetDb();
   // Configuración por defecto (constancia profesional NO aceptada) + pestaña maestra habilitada.
   b = await testApp(new FakeSheets(), { SHEETS_MAESTRA_GID: '1340025527' });
+  await crearMedicoPrueba(b);
   for (const [k, rol, pid] of [
     ['coord', 'coordinacion', null],
     ['admin', 'admin', null],
     ['gabriel', 'profesional', 'gabriel-ordonez'],
     ['sofia', 'profesional', 'sofia-guerra'],
-    ['demetrio', 'profesional', 'demetrio-magallanes'],
+    ['demetrio', 'profesional', 'medico-prueba'],
     ['autoridad', 'autoridad', null],
     ['auditor', 'auditoria', null],
   ] as const) {
@@ -367,7 +368,7 @@ describe('4–5. Historia clínica electrónica y continuidad asistencial', () =
     expect((await gabriel.post(`/api/expedientes/${expId}/secciones`, { area: 'psicologia', seccion: 'antecedentes', contenido: 'Antecedente de duelo' })).status).toBe(400);
     expect((await gabriel.post(`/api/expedientes/${expId}/secciones`, { area: 'psicologia', seccion: 'antecedentes', contenido: 'Antecedente de duelo', motivo_cambio: 'Nueva información' })).body.version).toBe(2);
     expect((await gabriel.get(`/api/expedientes/${expId}/secciones/psicologia/antecedentes`)).body).toHaveLength(2);
-    await coord.post(`/api/servidores/${sid['D-1']}/asignaciones`, { profesional_id: 'demetrio-magallanes' });
+    await coord.post(`/api/servidores/${sid['D-1']}/asignaciones`, { profesional_id: 'medico-prueba' });
     expect((await demetrio.post(`/api/expedientes/${expId}/secciones`, { area: 'psicologia', seccion: 'antecedentes', contenido: 'x', motivo_cambio: 'x' })).status).toBe(403);
     expect((await demetrio.post(`/api/expedientes/${expId}/secciones`, { area: 'medicina', seccion: 'antecedentes', contenido: 'Hipertensión controlada' })).status).toBe(200);
   });
@@ -377,7 +378,7 @@ describe('4–5. Historia clínica electrónica y continuidad asistencial', () =
     expect(r.body.entradas[0].contenido.resumen).toBe('Primera sesión (corregido)');
     expect(r.body.entradas[0].adendas).toHaveLength(1);
     expect(r.body.secciones.map((s: any) => s.area).sort()).toEqual(['medicina', 'psicologia']);
-    await coord.post(`/api/servidores/${sid['D-2']}/asignaciones`, { profesional_id: 'demetrio-magallanes' });
+    await coord.post(`/api/servidores/${sid['D-2']}/asignaciones`, { profesional_id: 'medico-prueba' });
     const r2 = await demetrio.get(`/api/servidores/${sid['D-2']}/expediente`);
     expect(r2.body.entradas[0]).toMatchObject({ restringida: true, contenido: null });
     expect(JSON.stringify(r2.body)).not.toContain('Contención en crisis');
@@ -413,7 +414,7 @@ describe('4–5. Historia clínica electrónica y continuidad asistencial', () =
     // Trabajo Social no aparece en la oficina virtual ni cuenta entre los 8 profesionales.
     const snap = (await coord.get('/api/office/presencia')).body;
     expect(snap.some((p: any) => p.profesional_id === pid)).toBe(false);
-    expect((await coord.get('/api/profesionales')).body.filter((p: any) => p.es_teleatencion)).toHaveLength(8);
+    expect((await coord.get('/api/profesionales')).body.filter((p: any) => p.es_teleatencion && p.id !== 'medico-prueba')).toHaveLength(8);
   });
   it('cada acceso y modificación queda auditado', async () => {
     const r = await auditor.get('/api/auditoria?limit=500');
