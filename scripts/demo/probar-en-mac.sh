@@ -109,8 +109,16 @@ export PORT=${PUERTO}
 
 # -------------------------------------------- Compilar y arrancar -------------------------------------------
 paso "Dependencias, estructura de la base y compilación (la primera vez tarda unos minutos)"
-[ -d node_modules ] || npm ci
-npx tsx server/cli/migrate.ts
+# .env.demo trae NODE_ENV=production: sin --include=dev npm omitiría tsx, TypeScript y Vite (herramientas de compilación).
+# Las herramientas se ejecutan desde node_modules/.bin, nunca con npx: no se descarga nada temporalmente.
+HERRAMIENTAS="tsx tsc vite"
+falta_herramienta=""
+for h in ${HERRAMIENTAS}; do [ -x "node_modules/.bin/${h}" ] || falta_herramienta="${h}"; done
+if [ -n "${falta_herramienta}" ]; then
+  npm ci --include=dev --no-audit --no-fund
+fi
+for h in ${HERRAMIENTAS}; do [ -x "node_modules/.bin/${h}" ] || falta "No se instaló ${h}. Revise la conexión y vuelva a ejecutar el script."; done
+./node_modules/.bin/tsx server/cli/migrate.ts
 npm run build >/dev/null 2>&1 || { npm run build; falta "La compilación falló."; }
 
 SERVIDOR=""; SEMILLA=""; SERVE_CMD=""

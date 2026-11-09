@@ -4,7 +4,8 @@ Todo ocurre en su Mac, con una base de datos de demostración **nueva y vacía**
 
 Qué garantiza `scripts/demo/probar-en-mac.sh`:
 - **Puerto**: si el 4000 está ocupado, no detiene nada; avisa y usa el siguiente libre.
-- **Base de datos**: crea `cgreg_demo`. Si ya existe, se detiene sin tocarla. Solo la reutiliza con `--autorizo-reutilizar` y únicamente si la creó este mismo script. Nunca borra bases.
+- **Base de datos**: crea `cgreg_demo_brigada` (base DEMO nueva). Las bases de pruebas anteriores `cgreg_demo` y `cgreg_demo_prueba_20261108` están protegidas: nunca se usan ni se modifican. Si `cgreg_demo_brigada` ya existe, se detiene sin tocarla. Solo la reutiliza con `--autorizo-reutilizar` y únicamente si la creó este mismo script. Nunca borra bases.
+- **Dependencias**: se instalan con `npm ci --include=dev` (incluye tsx, TypeScript y Vite) y se ejecutan desde la carpeta del proyecto; nada se descarga con `npx`.
 - **DATABASE_URL**: solo PostgreSQL local (localhost) y exactamente la base DEMO; si no, no continúa.
 - **Google Sheets**: desactivado y sin credenciales.
 - **iPhone/Android**: HTTPS privado con **Tailscale Serve**, visible solo para los dispositivos conectados a su cuenta de Tailscale. Se deja de compartir al cerrar la Terminal.

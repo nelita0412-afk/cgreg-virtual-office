@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
+import { loadConfig } from '../server/config';
 
 /**
  * El Bash de macOS (3.2) decide dónde termina el nombre de una variable con la libc del sistema, que en UTF-8
@@ -24,3 +25,27 @@ describe('Scripts de demostración compatibles con el Bash de macOS', () => {
     });
   }
 });
+
+describe('Garantías del kit de demostración y de producción', () => {
+  const kit = readFileSync(new URL('../scripts/demo/probar-en-mac.sh', import.meta.url), 'utf8');
+  const codigo = kit.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n');
+  it('instala dependencias de desarrollo y nunca descarga herramientas con npx', () => {
+    expect(codigo).toContain('npm ci --include=dev');
+    expect(codigo).not.toMatch(/\bnpx\b/);
+    expect(codigo).toContain('./node_modules/.bin/tsx server/cli/migrate.ts');
+  });
+  it('usa la base DEMO nueva y protege las bases anteriores', () => {
+    expect(codigo).toContain('BASE=${BASE:-cgreg_demo_brigada}');
+    expect(codigo).toContain('BASES_PROTEGIDAS="cgreg_demo cgreg_demo_prueba_20261108"');
+  });
+  it('comparte solo con Tailscale Serve (privado), nunca con Funnel (público)', () => {
+    expect(codigo).toMatch(/serve --bg --https=443 http:\/\/127\.0\.0\.1:/);
+    expect(codigo).not.toMatch(/funnel/i);
+  });
+  it('en producción WhatsApp y el modo demo están desactivados por defecto', () => {
+    const cfg = loadConfig({ NODE_ENV: 'production', DATABASE_URL: 'postgres://x@localhost/x', DATA_ENCRYPTION_KEY: Buffer.alloc(32).toString('base64') } as NodeJS.ProcessEnv);
+    expect(cfg.TELEATENCION_WHATSAPP_HABILITADA).toBe('false');
+    expect(cfg.MODO_DEMO).toBe('false');
+  });
+});
+
