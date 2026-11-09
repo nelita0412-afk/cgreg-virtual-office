@@ -207,7 +207,7 @@ function DiaProfesional() {
   const derivaciones = useQuery<any[]>({ queryKey: ['derivaciones'], queryFn: () => api.get('/api/derivaciones'), enabled: puede(me, 'derivaciones.crear') });
 
   const citas = (agenda.data ?? []).filter((c) => c.estado !== 'reprogramada');
-  const siguiente = citas.find((c) => ['programada', 'confirmada', 'en_atencion'].includes(c.estado) && new Date(c.fin) > new Date());
+  const siguiente = citas.find((c) => ['programada', 'confirmada', 'contacto_iniciado', 'en_atencion'].includes(c.estado) && new Date(c.fin) > new Date());
   const ahoraIso = new Date().toISOString();
   const segs = seguimientos.data ?? [];
   const vencidos = segs.filter((s) => s.fecha_programada < ahoraIso);

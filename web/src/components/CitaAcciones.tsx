@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Play, Square, Check, CalendarClock, XCircle, FileText } from 'lucide-react';
+import { Play, Square, Check, CalendarClock, XCircle, FileText, MessageCircle } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { ErrorMsg, Field, Modal } from './ui';
@@ -39,16 +39,39 @@ export function CitaAcciones({ a, compacto }: { a: any; compacto?: boolean }) {
     }
   };
   const sm = compacto ? 'btn-sm' : '';
+  // Teleatención: canal habilitado por la institución (hoy, WhatsApp con videollamada manual).
+  const tele = useQuery({ queryKey: ['teleatencion-config'], queryFn: () => api.get<{ canales: { id: string; habilitado: boolean }[] }>('/api/teleatencion/config'), staleTime: 5 * 60_000, enabled: propio });
+  const whatsappHabilitado = !!tele.data?.canales.find((k) => k.id === 'whatsapp_manual' && k.habilitado);
+  const [contactando, setContactando] = useState(false);
+  const contactar = async () => {
+    setErr(null);
+    setContactando(true);
+    // La ventana se abre en el mismo gesto del usuario (los navegadores bloquean ventanas abiertas después de esperar).
+    const ventana = window.open('', '_blank');
+    try {
+      const r = await api.post<{ url: string }>(`/api/atenciones/${a.id}/whatsapp`, {});
+      if (ventana) {
+        ventana.opener = null;
+        ventana.location.href = r.url;
+      } else window.location.href = r.url;
+      qc.invalidateQueries();
+    } catch (e) {
+      ventana?.close();
+      setErr(e);
+    } finally {
+      setContactando(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-1.5">
-        {propio && ['programada', 'confirmada', 'pendiente'].includes(a.estado) && (
+        {propio && ['programada', 'confirmada', 'contacto_iniciado', 'pendiente'].includes(a.estado) && (
           <button
             className={`btn-primary ${sm}`}
             onClick={async () => {
               setErr(null);
               try {
-                await api.post(`/api/atenciones/${a.id}/iniciar`);
+                await api.post(`/api/atenciones/${a.id}/iniciar`, whatsappHabilitado ? { modalidad: 'videollamada_whatsapp' } : {});
                 qc.invalidateQueries();
                 nav(`/atenciones/${a.id}`);
               } catch (e) {
@@ -57,18 +80,28 @@ export function CitaAcciones({ a, compacto }: { a: any; compacto?: boolean }) {
               }
             }}
           >
-            <Play size={14} /> Iniciar atención
+            <Play size={14} /> {whatsappHabilitado ? 'Iniciar teleatención' : 'Iniciar atención'}
+          </button>
+        )}
+        {propio && whatsappHabilitado && ['programada', 'confirmada', 'contacto_iniciado', 'en_atencion'].includes(a.estado) && (
+          <button className={`btn-ghost ${sm}`} onClick={() => void contactar()} disabled={contactando}>
+            <MessageCircle size={14} /> {contactando ? 'Abriendo…' : 'Contactar por WhatsApp'}
           </button>
         )}
         {propio && a.estado === 'en_atencion' && (
           <button className={`btn-primary ${sm}`} onClick={() => run(() => api.post(`/api/atenciones/${a.id}/finalizar`), `/atenciones/${a.id}`)}><Square size={14} /> Finalizar</button>
         )}
         {gestiona && a.estado === 'programada' && <button className={`btn-ghost ${sm}`} onClick={() => run(() => api.post(`/api/agenda/citas/${a.id}/confirmar`))}><Check size={14} /> Confirmar</button>}
-        {gestiona && ['programada', 'confirmada'].includes(a.estado) && <button className={`btn-ghost ${sm}`} onClick={() => setRepro(true)}><CalendarClock size={14} /> Reprogramar</button>}
-        {gestiona && ['programada', 'confirmada', 'pendiente'].includes(a.estado) && <button className={`btn-ghost ${sm}`} onClick={() => setNoReal(true)}><XCircle size={14} /> No realizada</button>}
+        {gestiona && ['programada', 'confirmada', 'contacto_iniciado'].includes(a.estado) && <button className={`btn-ghost ${sm}`} onClick={() => setRepro(true)}><CalendarClock size={14} /> Reprogramar</button>}
+        {gestiona && ['programada', 'confirmada', 'contacto_iniciado', 'pendiente'].includes(a.estado) && <button className={`btn-ghost ${sm}`} onClick={() => setNoReal(true)}><XCircle size={14} /> No realizada</button>}
         {(propio || me?.rol === 'coordinacion') && <button className={`btn-ghost ${sm}`} onClick={() => nav(`/atenciones/${a.id}`)}><FileText size={14} /> Detalle</button>}
       </div>
       <ErrorMsg error={err} />
+      {propio && whatsappHabilitado && ['programada', 'confirmada', 'contacto_iniciado', 'en_atencion'].includes(a.estado) && (
+        <p className="text-[11px] leading-relaxed faint">
+          WhatsApp se abre con el número que la persona autorizó y un saludo institucional sin datos clínicos. La videollamada se inicia manualmente desde WhatsApp; al terminar, registre la atención aquí.
+        </p>
+      )}
       {repro && <ProgramarCita open onClose={() => setRepro(false)} reprogramarId={a.id} servidorId={a.servidor_id} profesionalId={a.profesional_id} />}
       <Modal open={urgencia} onClose={() => setUrgencia(false)} title="Consentimiento informado pendiente">
         <p className="text-sm muted">La atención ordinaria requiere un consentimiento documentado y validado. Puede gestionarlo desde la ficha del servidor.</p>

@@ -36,7 +36,7 @@ export async function nivelAcceso(c: Queryable, user: SessionUser, servidorId: s
     `select 1 from ops.asignaciones where servidor_id = $1 and profesional_id = $2 and activa
      union all select 1 from ops.derivaciones where servidor_id = $1 and (especialista_id = $2 or profesional_derivante_id = $2)
      union all select 1 from ops.atenciones where servidor_id = $1 and profesional_id = $2 and estado <> 'pendiente'
-     union all select 1 from clinical.entradas e join clinical.expedientes x on x.id = e.expediente_id where x.servidor_id = $1 and e.autor_profesional_id = $2
+     union all select 1 from clinical.entradas e join clinical.expedientes x on x.id = e.expediente_id where x.servidor_id = $1 and core.profesional_canonico(e.autor_profesional_id) = $2
      limit 1`,
     [servidorId, user.profesional_id],
   );

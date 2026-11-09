@@ -414,7 +414,7 @@ describe('4–5. Historia clínica electrónica y continuidad asistencial', () =
     // Trabajo Social no aparece en la oficina virtual ni cuenta entre los 8 profesionales.
     const snap = (await coord.get('/api/office/presencia')).body;
     expect(snap.some((p: any) => p.profesional_id === pid)).toBe(false);
-    expect((await coord.get('/api/profesionales')).body.filter((p: any) => p.es_teleatencion && p.id !== 'medico-prueba')).toHaveLength(8);
+    expect((await coord.get('/api/profesionales')).body.filter((p: any) => p.es_teleatencion && p.id !== 'medico-prueba')).toHaveLength(7);
   });
   it('cada acceso y modificación queda auditado', async () => {
     const r = await auditor.get('/api/auditoria?limit=500');

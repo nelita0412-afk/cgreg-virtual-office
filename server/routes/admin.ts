@@ -56,8 +56,9 @@ export function adminRoutes(app: FastifyInstance, ctx: AppCtx, sync: SheetsSync)
       }
     }
     if (b.profesional_id) {
-      const p = (await db.query(`select especialidad from core.profesionales where id = $1`, [b.profesional_id])).rows[0];
+      const p = (await db.query(`select especialidad, activo from core.profesionales where id = $1`, [b.profesional_id])).rows[0];
       if (!p) throw badRequest('Profesional no encontrado.');
+      if (!p.activo) throw conflict('Ese registro del directorio está retirado o consolidado en otro.');
       validarVinculo(b.rol, p.especialidad);
     }
     if (b.rol === 'epidemiologia' && !b.profesional_id) throw badRequest('El Apoyo Epidemiológico se vincula a su registro del directorio.');
@@ -112,8 +113,9 @@ export function adminRoutes(app: FastifyInstance, ctx: AppCtx, sync: SheetsSync)
     const t = (await db.query(`select id, rol, profesional_id from core.usuarios where id = $1`, [id])).rows[0];
     if (!t) throw notFound();
     if (t.profesional_id) throw conflict('La cuenta ya está vinculada a un registro del directorio. Los vínculos no se reasignan.');
-    const p = (await db.query(`select especialidad, exists(select 1 from core.usuarios where profesional_id = $1) as ocupado from core.profesionales where id = $1`, [b.profesional_id])).rows[0];
+    const p = (await db.query(`select especialidad, activo, consolidado_en, exists(select 1 from core.usuarios where profesional_id = $1) as ocupado from core.profesionales where id = $1`, [b.profesional_id])).rows[0];
     if (!p) throw badRequest('Profesional no encontrado.');
+    if (!p.activo) throw conflict(p.consolidado_en ? `Ese registro fue consolidado en «${p.consolidado_en}»; vincule la cuenta a ese registro.` : 'Ese registro del directorio está retirado.');
     if (p.ocupado) throw conflict('Ese registro del directorio ya tiene una cuenta. Los vínculos no se reasignan.');
     validarVinculo(t.rol, p.especialidad);
     await db.query(`update core.usuarios set profesional_id = $2 where id = $1`, [id, b.profesional_id]);

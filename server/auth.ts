@@ -13,7 +13,14 @@ const DUMMY_HASH = bcrypt.hashSync('cgreg-dummy-password', 12);
 
 export const hashPassword = (p: string) => bcrypt.hash(p, 12);
 
+/**
+ * Contraseña FICTICIA de las cuentas de demostración. Nunca es válida fuera de un entorno de demostración:
+ * no se acepta como contraseña nueva y, sin MODO_DEMO=true, no permite ingresar.
+ */
+export const CONTRASENA_DEMO = 'Demo-CGREG-2026';
+
 export function validarPassword(p: string): string | null {
+  if (p.trim().toLowerCase() === CONTRASENA_DEMO.toLowerCase()) return 'Esa es la contraseña ficticia de demostración: elija otra.';
   if (p.length < 12) return 'La contraseña debe tener al menos 12 caracteres.';
   if (!/[a-zA-Z]/.test(p) || !/\d/.test(p)) return 'La contraseña debe combinar letras y números.';
   return null;
@@ -27,6 +34,8 @@ export async function login(ctx: AppCtx, email: string, password: string, ip: st
     await audit(db, u ? { id: u.id, rol: u.rol } : null, 'auth.login_fallido', 'usuario', u?.id ?? null, { motivo }, ip);
     throw new HttpError(401, 'Credenciales inválidas o cuenta bloqueada temporalmente.', 'auth_failed');
   };
+  // La contraseña de demostración no sirve fuera de un entorno de demostración, aunque una cuenta la tuviera.
+  if (cfg.MODO_DEMO !== 'true' && password === CONTRASENA_DEMO) await fail('contrasena_demo_fuera_de_demo');
   if (!u || !u.activo) {
     await bcrypt.compare(password, DUMMY_HASH); // tiempo constante
     return fail(u ? 'inactivo' : 'desconocido');

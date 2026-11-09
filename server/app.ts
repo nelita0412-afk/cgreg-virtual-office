@@ -29,6 +29,7 @@ import { hceRoutes } from './routes/hce';
 import { consentimientosRoutes } from './routes/consentimientos';
 import { rutasRoutes } from './routes/rutas';
 import { pushRoutes } from './push';
+import { teleatencionRoutes } from './teleatencion';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -102,6 +103,7 @@ export async function buildApp(cfg: Config, opts: { sheetsClient?: SheetsClient;
   consentimientosRoutes(app, ctx);
   rutasRoutes(app, ctx);
   pushRoutes(app, ctx);
+  teleatencionRoutes(app, ctx);
 
   // Frontend compilado (producción).
   const here = dirname(fileURLToPath(import.meta.url));

@@ -39,10 +39,11 @@ function migrationsDir(): string {
   throw new Error('No se encontró db/migrations');
 }
 
-export async function migrate(db: Db, log: (m: string) => void = console.log): Promise<string[]> {
+/** Aplica las migraciones pendientes. `hasta` (solo pruebas) detiene la serie después de ese archivo. */
+export async function migrate(db: Db, log: (m: string) => void = console.log, opts: { hasta?: string } = {}): Promise<string[]> {
   await db.query(`create table if not exists public._migraciones (nombre text primary key, aplicada_at timestamptz not null default now())`);
   const dir = migrationsDir();
-  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql') && (!opts.hasta || f <= opts.hasta)).sort();
   const applied = new Set((await db.query<{ nombre: string }>('select nombre from public._migraciones')).rows.map((r) => r.nombre));
   const done: string[] = [];
   for (const f of files) {

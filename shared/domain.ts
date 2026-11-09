@@ -99,6 +99,7 @@ export const ESTADOS_ATENCION = [
   'pendiente',
   'programada',
   'confirmada',
+  'contacto_iniciado',
   'en_atencion',
   'atendida',
   'reprogramada',
@@ -109,13 +110,14 @@ export const ESTADO_ATENCION_LABEL: Record<EstadoAtencion, string> = {
   pendiente: 'Pendiente',
   programada: 'Programada',
   confirmada: 'Confirmada',
+  contacto_iniciado: 'Contacto iniciado',
   en_atencion: 'En atención',
   atendida: 'Atendida',
   reprogramada: 'Reprogramada',
   no_realizada: 'No realizada',
 };
 /** Estados que reservan un bloque horario en la agenda. */
-export const ESTADOS_ATENCION_RESERVAN: EstadoAtencion[] = ['programada', 'confirmada', 'en_atencion'];
+export const ESTADOS_ATENCION_RESERVAN: EstadoAtencion[] = ['programada', 'confirmada', 'contacto_iniciado', 'en_atencion'];
 
 // ---- Derivaciones ----
 export const ESTADOS_DERIVACION = [

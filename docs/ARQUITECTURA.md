@@ -132,3 +132,9 @@ Pausa (manual) ─────► «En pausa» → zona de pausa
 - **Oficina**: `oficina.entrar` protege `/api/office/presencia`, `/api/office/eventos` y el envío de presencia por WebSocket; los perfiles sin Oficina entran a su panel (`/comando`, `/auditoria`, `/configuracion`). Siete puestos de Psicología (7,75 m entre centros).
 - **Administración**: `GET /api/admin/registros-directorio`, `POST /api/admin/usuarios/:id/vincular` (no reasigna), `POST /api/admin/usuarios/:id/funciones` y `.../funciones/:funcion/revocar` (con motivo).
 
+## Teleatención y consolidación de identidad (migración 008)
+- `server/teleatencion.ts`: registro de canales (`whatsapp_manual`, sin llamada automática), normalización de celulares de Ecuador, mensaje institucional y rutas `PUT/DELETE /api/servidores/:id/whatsapp`, `POST /api/atenciones/:id/whatsapp`, `GET /api/teleatencion/config`.
+- `ops.atenciones`: estado `contacto_iniciado`, `modalidad`, `contacto_iniciado_at/por`. `ops.servidores.whatsapp_*` (cifrado + 4 últimos dígitos). `ops.solicitudes_atencion.whatsapp_cifrado/autoriza_whatsapp`.
+- `core.profesionales.consolidado_en` + `core.profesional_canonico()`: alias de registros consolidados; los registros firmados nunca se reescriben.
+- `MODO_DEMO`: aviso de demostración y bloqueo de la contraseña de demostración fuera de ese modo.
+

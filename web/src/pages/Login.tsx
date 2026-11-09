@@ -4,10 +4,12 @@ import { Link } from 'react-router-dom';
 import { HeartHandshake, ShieldCheck } from 'lucide-react';
 import { Instalar } from '../components/AppMovil';
 import { api } from '../lib/api';
+import { useModoDemo } from '../lib/demo';
 import { ErrorMsg, Field, useSubmit } from '../components/ui';
 
 export default function Login() {
   const qc = useQueryClient();
+  const demo = useModoDemo();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const s = useSubmit(
@@ -17,6 +19,11 @@ export default function Login() {
   return (
     <div className="grid min-h-full place-items-center p-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <div className="w-full max-w-md">
+        {demo && (
+          <p role="note" className="mb-4 rounded-2xl border px-4 py-3 text-sm text-arena-900" style={{ borderColor: 'rgba(197,169,137,.7)', background: 'rgba(197,169,137,.16)' }}>
+            <strong>Entorno de demostración.</strong> Todos los datos son ficticios. La contraseña de prueba solo funciona aquí y no puede usarse en la plataforma real.
+          </p>
+        )}
         <div className="mb-6 flex items-center gap-3">
           <img src="/icons/icono-192.png" alt="" className="h-14 w-14 shrink-0 rounded-2xl shadow-glow" />
           <div>

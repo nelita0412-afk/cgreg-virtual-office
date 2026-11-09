@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Building2, Gauge, Users, BookUser, Sun, CalendarDays, IdCard, HeartPulse, Share2, Inbox, MessagesSquare, GraduationCap, BarChart3, Settings, ShieldCheck, MapPin, Clock, Bell, LogOut, Wifi, WifiOff, Map, Siren, DoorOpen, FolderHeart,
+  Building2, Gauge, Users, BookUser, HeartHandshake, FileSignature, Sun, CalendarDays, IdCard, HeartPulse, Share2, Inbox, MessagesSquare, GraduationCap, BarChart3, Settings, ShieldCheck, MapPin, Clock, Bell, LogOut, Wifi, WifiOff, Map, Siren, DoorOpen, FolderHeart,
 } from 'lucide-react';
 import { useAuth, type Me } from '../lib/auth';
 import { api } from '../lib/api';
 import { ahoraGal, fRelativo } from '../lib/format';
 import { useConexion } from '../lib/realtime';
+import { useModoDemo } from '../lib/demo';
 import { puede } from '@shared/permissions';
 import { ROL_LABEL } from '@shared/domain';
 import { BarraInferior, AvisoSinConexion, AvisoActualizacion, type ItemNav } from './AppMovil';
@@ -25,6 +26,8 @@ const NAV: ItemNav[] = [
   { to: '/atencion-abierta', label: 'Atención abierta', icon: DoorOpen, perm: ['abierta.ver'] },
   { to: '/historias-clinicas', label: 'Historias clínicas', corto: 'Historias', icon: FolderHeart, perm: ['hce.ver'] },
   { to: '/atenciones', label: 'Atenciones', icon: HeartPulse, perm: ['agenda.ver_todas', 'agenda.propia'] },
+  { to: '/gestion-social', label: 'Gestión Social', corto: 'Social', icon: HeartHandshake, perm: ['social.registrar'] },
+  { to: '/consentimientos', label: 'Consentimientos', icon: FileSignature, perm: ['consentimientos.gestionar'] },
   { to: '/derivaciones', label: 'Derivaciones a Psiquiatría', corto: 'Derivaciones', icon: Share2, perm: ['derivaciones.crear', 'derivaciones.coordinar'] },
   { to: '/solicitudes', label: 'Mis Solicitudes y Gestiones', corto: 'Solicitudes', icon: Inbox, perm: ['solicitudes.crear', 'solicitudes.gestionar'] },
   { to: '/debriefing', label: 'Debriefing', icon: MessagesSquare, perm: ['actividades.ver'] },
@@ -125,6 +128,7 @@ const ETIQUETAS: Record<string, Record<string, { label: string; corto?: string }
     '/derivaciones': { label: 'Mis derivaciones', corto: 'Derivaciones' },
     '/historias-clinicas': { label: 'Mis registros clínicos', corto: 'Registros' },
     '/solicitudes': { label: 'Mis solicitudes', corto: 'Solicitudes' },
+    '/consentimientos': { label: 'Mis consentimientos', corto: 'Consentimientos' },
   },
   coordinacion: {
     '/inicio': { label: 'Panel de Coordinación', corto: 'Panel' },
@@ -133,7 +137,8 @@ const ETIQUETAS: Record<string, Record<string, { label: string; corto?: string }
     '/atencion-prioritaria': { label: 'Seguimiento', corto: 'Seguimiento' },
     '/derivaciones': { label: 'Derivaciones y articulación', corto: 'Derivaciones' },
     '/solicitudes': { label: 'Solicitudes', corto: 'Solicitudes' },
-    '/historias-clinicas': { label: 'Casos y gestión social', corto: 'Casos' },
+    '/historias-clinicas': { label: 'Expedientes (vista administrativa)', corto: 'Expedientes' },
+    '/comando': { label: 'Indicadores', corto: 'Indicadores' },
   },
   epidemiologia: {
     '/inicio': { label: 'Mi espacio de trabajo', corto: 'Mi espacio' },
@@ -157,6 +162,7 @@ export function navDe(me: Me | null): ItemNav[] {
 
 export function Layout() {
   const { me } = useAuth();
+  const demo = useModoDemo();
   const qc = useQueryClient();
   const nav = useNavigate();
   const movil = useEsMovil();
@@ -200,6 +206,11 @@ export function Layout() {
       <header className="z-30 flex items-center gap-3 border-b px-3 py-2 sm:px-4" style={{ borderColor: 'var(--line)', background: 'rgba(250,249,244,.88)', backdropFilter: 'saturate(1.4) blur(18px)', paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-3">
           <img src="/icons/icono-192.png" alt="" className="h-10 w-10 rounded-xl shadow-glow" />
+          {demo && (
+            <span className="order-last whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-arena-800" style={{ borderColor: 'rgba(197,169,137,.7)', background: 'rgba(197,169,137,.18)' }} title="Entorno de demostración: todos los datos son ficticios">
+              Demo<span className="hidden sm:inline"> · datos ficticios</span>
+            </span>
+          )}
           <div className="leading-tight sm:hidden">
             <div className="text-[15px] font-bold tracking-tight">CGREG Office</div>
             <div className="text-[11px] muted">Santa Cruz · Galápagos</div>

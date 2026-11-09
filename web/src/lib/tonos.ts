@@ -6,6 +6,7 @@ export const tonoAtencion: Record<EstadoAtencion, Tono> = {
   pendiente: 'neutral',
   programada: 'info',
   confirmada: 'violet',
+  contacto_iniciado: 'serious',
   en_atencion: 'warning',
   atendida: 'good',
   reprogramada: 'neutral',

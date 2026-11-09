@@ -139,6 +139,7 @@ export default function ServidorDetalle() {
           </Card>
         )}
         {(esPro || esCoord) && <div className="lg:col-span-2"><ConsentimientosPanel servidorId={id!} consentimientos={d.consentimientos} /></div>}
+        {(esCoord || esPro) && <WhatsappAutorizado servidorId={id!} estado={s.whatsapp} onCambio={refresh} />}
         <Card title="Contactos y aviso de privacidad">
           <div className="space-y-3 text-sm">
             <div>
@@ -255,5 +256,58 @@ function Riesgo({ open, onClose, id }: any) {
       <Field label="¿Requiere seguimiento?"><select className="input" value={v.requiere_seguimiento} onChange={(e) => setV({ ...v, requiere_seguimiento: e.target.value })}><option value="true">Sí</option><option value="false">No</option></select></Field>
       <label className="flex gap-2 text-sm"><input type="checkbox" checked={v.confirmacion} onChange={(e) => setV({ ...v, confirmacion: e.target.checked })} required /> Confirmo que esta clasificación resulta de mi valoración profesional.</label>
     </FormModal>
+  );
+}
+
+/**
+ * WhatsApp para teleatención: solo con autorización expresa de la persona. Se muestra enmascarado; el número completo
+ * solo lo usa el enlace de contacto del profesional responsable. Nada clínico viaja por WhatsApp.
+ */
+function WhatsappAutorizado({ servidorId, estado, onCambio }: { servidorId: string; estado: { autorizado: boolean; terminacion?: string; fuente?: string; autorizado_at?: string } | undefined; onCambio: () => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const [numero, setNumero] = useState('');
+  const [autoriza, setAutoriza] = useState(false);
+  const guardar = useSubmit(() => api.put(`/api/servidores/${servidorId}/whatsapp`, { numero, autorizado: autoriza }), () => {
+    setAbierto(false);
+    setNumero('');
+    setAutoriza(false);
+    onCambio();
+  });
+  const retirar = useSubmit(() => api.del(`/api/servidores/${servidorId}/whatsapp`), onCambio);
+  return (
+    <Card title="WhatsApp para teleatención">
+      {estado?.autorizado ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <Badge tono="good">Autorizado</Badge>
+          <span className="tabular-nums">{estado.terminacion}</span>
+          <span className="text-xs muted">
+            {estado.fuente === 'solicitud_publica' ? 'Autorizado por la persona en su solicitud' : 'Autorización registrada por el equipo'} · {fFechaHora(estado.autorizado_at)}
+          </span>
+          <button className="btn-ghost btn-sm ml-auto" onClick={() => retirar.run(undefined)} disabled={retirar.busy}>Retirar autorización</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="muted">Sin número autorizado. Sin autorización no se habilita el contacto por WhatsApp.</span>
+          <button className="btn-ghost btn-sm ml-auto" onClick={() => setAbierto(true)}>Registrar WhatsApp autorizado</button>
+        </div>
+      )}
+      <ErrorMsg error={retirar.error} />
+      <Modal open={abierto} onClose={() => setAbierto(false)} title="WhatsApp autorizado para teleatención">
+        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); guardar.run(undefined); }}>
+          <Field label="Celular (Ecuador)" hint="El número que la persona indicó para ser contactada. No use números personales sin su autorización.">
+            <input className="input" inputMode="tel" autoComplete="off" placeholder="09 9999 9999" value={numero} onChange={(e) => setNumero(e.target.value)} required />
+          </Field>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={autoriza} onChange={(e) => setAutoriza(e.target.checked)} required />
+            <span>La persona autorizó expresamente que la Brigada la contacte por WhatsApp para coordinar y realizar su atención.</span>
+          </label>
+          <ErrorMsg error={guardar.error} />
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-ghost" onClick={() => setAbierto(false)}>Cancelar</button>
+            <button className="btn-primary" disabled={!autoriza || guardar.busy}>Guardar</button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
   );
 }

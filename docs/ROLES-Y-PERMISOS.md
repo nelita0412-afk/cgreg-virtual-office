@@ -73,7 +73,7 @@ Funciones complementarias:
 | Diego Estrella Almeida | Profesional (Psiquiatría) | — | `diego-estrella` |
 | María de los Ángeles Alcívar Condo | Profesional (Psicología) | — | `maria-alcivar` |
 | Hugo Xavier Cuenca Guerrero | Profesional (Psicología) | — | `hugo-cuenca` |
-| Sally Tinizaray Soriano | Profesional (Psicología) | — | `sally-tinizaray` (registro propio) |
+| Sally Tinizaray Soriano | Profesional (Psicología) | — | `zally-pamela` (identificador histórico; nombre corregido en la migración 008) |
 | Demetrio Magallanes Manzaba | Apoyo Epidemiológico y Territorial | — | `demetrio-magallanes` |
 
 ## Mi Equipo y Directorio

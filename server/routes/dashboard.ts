@@ -17,10 +17,10 @@ export async function indicadores(ctx: AppCtx, presence: PresenceService, dias =
     select (select count(*) from ops.servidores where activo_en_fuente)::int as registrados,
            (select count(distinct servidor_id) from ops.contactos where resultado = 'contactado')::int as contactados,
            (select count(distinct servidor_id) from ops.atenciones where estado = 'atendida')::int as valorados,
-           (select count(distinct servidor_id) from ops.atenciones where estado in ('programada','confirmada') and inicio > now())::int as con_atencion_programada,
+           (select count(distinct servidor_id) from ops.atenciones where estado in ('programada','confirmada','contacto_iniciado') and inicio > now())::int as con_atencion_programada,
            (select count(*) from ops.atenciones where estado = 'atendida')::int as atenciones_realizadas,
            (select count(*) from ops.servidores s where activo_en_fuente
-               and not exists (select 1 from ops.atenciones a where a.servidor_id = s.id and a.estado in ('atendida','programada','confirmada','en_atencion')))::int as pendientes,
+               and not exists (select 1 from ops.atenciones a where a.servidor_id = s.id and a.estado in ('atendida','programada','confirmada','contacto_iniciado','en_atencion')))::int as pendientes,
            (select count(*) from ops.seguimientos where estado = 'pendiente')::int as seguimientos_pendientes,
            (select count(*) from ops.seguimientos where estado = 'realizado')::int as seguimientos_realizados,
            (select count(*) from ops.derivaciones)::int as derivaciones,
@@ -39,7 +39,7 @@ export async function indicadores(ctx: AppCtx, presence: PresenceService, dias =
   const porProfesional = await all(`
     select p.id, p.nombre_corto as nombre, p.especialidad,
            count(a.*) filter (where a.estado = 'atendida')::int as atendidas,
-           count(a.*) filter (where a.estado in ('programada','confirmada') and a.inicio > now())::int as programadas,
+           count(a.*) filter (where a.estado in ('programada','confirmada','contacto_iniciado') and a.inicio > now())::int as programadas,
            count(a.*) filter (where a.estado = 'no_realizada')::int as no_realizadas
       from core.profesionales p left join ops.atenciones a on a.profesional_id = p.id
      where p.es_teleatencion group by p.id order by p.orden`);
@@ -65,7 +65,7 @@ export async function indicadores(ctx: AppCtx, presence: PresenceService, dias =
     select (select count(*) from p)::int as identificados,
            (select count(distinct c.servidor_id) from ops.contactos c join p using (servidor_id) where c.resultado = 'contactado')::int as contactados,
            (select count(distinct a.servidor_id) from ops.asignaciones a join p using (servidor_id) where a.activa)::int as asignados,
-           (select count(*) from ops.atenciones a join p using (servidor_id) where a.estado in ('programada','confirmada') and a.inicio > now())::int as atenciones_programadas,
+           (select count(*) from ops.atenciones a join p using (servidor_id) where a.estado in ('programada','confirmada','contacto_iniciado') and a.inicio > now())::int as atenciones_programadas,
            (select count(*) from ops.atenciones a join p using (servidor_id) where a.estado = 'atendida')::int as atenciones_realizadas,
            (select count(*) from ops.seguimientos g join p using (servidor_id) where g.estado = 'pendiente')::int as seguimientos_pendientes`);
   const abierta = await one(`
@@ -73,7 +73,7 @@ export async function indicadores(ctx: AppCtx, presence: PresenceService, dias =
            count(*) filter (where verificacion in ('verificado_maestra','verificado_manual'))::int as servidores_verificados,
            count(*) filter (where verificacion = 'pendiente_verificacion' and estado not in ('cerrada','cancelada'))::int as pendientes_verificacion,
            count(*) filter (where estado = 'pendiente_asignacion')::int as pendientes_asignacion,
-           (select count(*) from ops.solicitudes_atencion sa join ops.atenciones a on a.id = sa.atencion_id where a.estado in ('programada','confirmada'))::int as atenciones_programadas,
+           (select count(*) from ops.solicitudes_atencion sa join ops.atenciones a on a.id = sa.atencion_id where a.estado in ('programada','confirmada','contacto_iniciado'))::int as atenciones_programadas,
            (select count(*) from ops.solicitudes_atencion sa join ops.atenciones a on a.id = sa.atencion_id where a.estado = 'atendida')::int as atenciones_realizadas
       from ops.solicitudes_atencion`);
   const hce = await one(`

@@ -5,6 +5,7 @@ import { HttpError, badRequest, conflict, forbidden, notFound } from '../context
 import { makeGuards } from '../auth';
 import { tx, type Queryable } from '../db';
 import { audit } from '../audit';
+import { guardarWhatsapp, normalizarCelularEc } from '../teleatencion';
 import { hashClaveConsulta, igualesTiempoConstante, normalizarClaveConsulta, nuevaClaveConsulta, sha256 } from '../crypto';
 import { notificar, usuarioDeProfesional, usuariosPorRol } from '../notify';
 import { exigirAsignacion, parse, u, uuid } from './util';
@@ -38,7 +39,7 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
       `select s.id, s.nombre, s.codigo_institucional, s.unidad, s.en_santa_cruz, s.verificacion,
               coalesce((select json_agg(json_build_object('profesional_id', a.profesional_id, 'nombre', p.nombre_corto)) from ops.asignaciones a join core.profesionales p on p.id = a.profesional_id where a.servidor_id = s.id and a.activa), '[]') as asignados,
               exists(select 1 from ops.contactos c where c.servidor_id = s.id and c.resultado = 'contactado') as contactado,
-              (select min(a.inicio) from ops.atenciones a where a.servidor_id = s.id and a.estado in ('programada','confirmada') and a.inicio > now()) as proxima_cita,
+              (select min(a.inicio) from ops.atenciones a where a.servidor_id = s.id and a.estado in ('programada','confirmada','contacto_iniciado') and a.inicio > now()) as proxima_cita,
               (select count(*)::int from ops.atenciones a where a.servidor_id = s.id and a.estado = 'atendida') as atendidas,
               (select count(*)::int from ops.seguimientos g where g.servidor_id = s.id and g.estado = 'pendiente') as seguimientos_pendientes,
               exists(select 1 from ops.consentimientos k where k.servidor_id = s.id and k.estado = 'validado' and k.revocado_at is null) as consentimiento_validado,
@@ -126,6 +127,9 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
     horario: z.string().trim().max(300).optional(),
     motivo: z.string().trim().max(1500).optional(),
     acepta_aviso: z.literal(true),
+    /** Opcional: celular para la teleatención por WhatsApp, solo si la persona lo autoriza expresamente. */
+    whatsapp: z.string().trim().max(20).optional(),
+    autoriza_whatsapp: z.boolean().optional(),
   });
 
   async function crearSolicitud(c: Queryable, b: z.infer<typeof solicitudSchema>, canal: 'formulario_publico' | 'registro_interno', user: SessionUser | null, ip: string) {
@@ -151,6 +155,12 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
       ],
     );
     const { id, codigo } = r.rows[0];
+    if (b.whatsapp) {
+      const numero = normalizarCelularEc(b.whatsapp);
+      if (!numero) throw badRequest('El celular para WhatsApp no es válido (ejemplo: 09 9999 9999).');
+      if (!b.autoriza_whatsapp) throw badRequest('Para registrar el WhatsApp debe autorizar que la brigada le contacte por ese medio.');
+      await c.query(`update ops.solicitudes_atencion set whatsapp_cifrado = $2, autoriza_whatsapp = true where id = $1`, [id, ctx.cipher.encrypt(numero)]);
+    }
     // Solo el formulario público entrega clave de consulta: se muestra una vez y se guarda únicamente su HMAC.
     const clave = canal === 'formulario_publico' ? nuevaClaveConsulta() : null;
     if (clave) await c.query(`update ops.solicitudes_atencion set clave_consulta_hash = $2 where id = $1`, [id, hashClaveConsulta(clave, ctx.cfg.DATA_ENCRYPTION_KEY)]);
@@ -168,6 +178,7 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
   app.get('/api/publico/config', async () => ({
     formulario_habilitado: ctx.cfg.FORMULARIO_PUBLICO_HABILITADO === 'true',
     emergencia_texto: ctx.cfg.EMERGENCIA_PUBLICO_TEXTO,
+    modo_demo: ctx.cfg.MODO_DEMO === 'true',
   }));
 
   /** Formulario público (sin cuenta). La respuesta es idéntica exista o no la persona en la base (evita enumeración). */
@@ -232,7 +243,8 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
 
   /** Coordinación ve datos de contacto y verificación (operativos); el motivo solo el profesional asignado. */
   function vista(user: SessionUser, s: any) {
-    const { contacto_cifrado, motivo_cifrado, ip_hash, ...rest } = s;
+    const { contacto_cifrado, motivo_cifrado, ip_hash, whatsapp_cifrado, ...rest } = s;
+    void whatsapp_cifrado; // el número solo se usa para el enlace de contacto del profesional, nunca en listados
     const asignado = user.rol === 'profesional' && user.profesional_id === s.profesional_asignado_id;
     return { ...rest, contacto: ctx.cipher.decrypt(contacto_cifrado), motivo: asignado && motivo_cifrado ? ctx.cipher.decrypt(motivo_cifrado) : undefined, tiene_motivo: !!motivo_cifrado };
   }
@@ -336,6 +348,14 @@ export function rutasRoutes(app: FastifyInstance, ctx: AppCtx) {
       const p = (await c.query(`select especialidad, es_teleatencion, nombre from core.profesionales where id = $1 and activo`, [b.profesional_id])).rows[0];
       if (!p?.es_teleatencion || p.especialidad === 'psiquiatria') throw badRequest('Asigne Psicología o Medicina; Psiquiatría se gestiona por derivación.');
       const sid = await asegurarServidor(c, s);
+      // El WhatsApp autorizado en la solicitud pasa al servidor (sin reemplazar uno ya autorizado).
+      if (s.autoriza_whatsapp && s.whatsapp_cifrado) {
+        const ya = (await c.query(`select whatsapp_cifrado from ops.servidores where id = $1`, [sid])).rows[0]?.whatsapp_cifrado;
+        if (!ya) {
+          await guardarWhatsapp(c, ctx, sid, ctx.cipher.decrypt(s.whatsapp_cifrado), 'solicitud_publica', null);
+          await audit(c, user, 'servidor.whatsapp_autorizado', 'servidor', sid, { fuente: 'solicitud_publica' }, req.ip);
+        }
+      }
       await c.query(
         `insert into ops.asignaciones (servidor_id, profesional_id, asignada_por) select $1,$2,$3 where not exists (select 1 from ops.asignaciones where servidor_id=$1 and profesional_id=$2 and activa)`,
         [sid, b.profesional_id, user.id],

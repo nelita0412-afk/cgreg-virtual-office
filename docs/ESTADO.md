@@ -116,10 +116,22 @@ Sin cambios en el backend (Fastify/PostgreSQL), las migraciones ni los módulos 
 - Pruebas: `tests/brigada.test.ts` (12 casos contra la API + tiempo real), `e2e/brigada.mjs` (interfaz por perfil), `scripts/demo/verificar-permisos.ts` (cuentas demo).
 
 ### Pendiente o requiere decisión
-- **Registro «Zally Pamela»**: no figura en el directorio oficial; se conservó intacto (cuenta, citas e historias) fuera del directorio. La Coordinación debe confirmar si es otra persona o un registro erróneo.
-- **Cuenta real de la Coordinadora**: en producción, Administración debe vincular su cuenta al registro `marianella-becerra` y otorgarle la función Trabajo Social (Configuración → Usuarios → Funciones).
-- **Horarios** de Sally Tinizaray y, si hará teleatención, de Andrea: no se inventaron.
-- **Telemedicina clínica**: tras la reorganización no hay médico de teleatención en el directorio. Las atenciones y registros previos de Demetrio se conservan, pero él ya no accede a ellos. Si deben continuar, la Coordinación puede reasignar esos casos.
+- **Cuenta real de la Coordinadora**: en producción, Administración debe vincular su cuenta al registro `marianella-becerra` y otorgarle la función Trabajo Social.
+- **Horario** de Andrea si hará teleatención (no se inventó).
+- **Telemedicina clínica**: no hay médico de teleatención en el directorio; las atenciones previas de Demetrio se conservan pero él ya no accede a ellas.
+
+## Teleatención y consolidación de Sally (noviembre 2026, rama `brigada-teleatencion`)
+
+### Implementado y verificado
+- **Sally Tinizaray Soriano = «Zally Pamela»** (migración 008): `zally-pamela` es el identificador canónico (conserva horario, citas, casos y actividades) con el nombre y perfil oficiales. El duplicado `sally-tinizaray` se retiró sin borrarse: sus referencias movibles pasaron al canónico; los registros firmados quedan vinculados por alias (`core.profesional_canonico`). Una sola cuenta activa; la otra, desactivada con sesiones revocadas. Todo auditado.
+- **Teleatención por WhatsApp** (ver `docs/TELEATENCION.md`): número autorizado cifrado, «Contactar por WhatsApp» (wa.me con mensaje institucional sin datos clínicos), estado «Contacto iniciado», «Iniciar teleatención» con modalidad registrada, habilitación institucional (`TELEATENCION_WHATSAPP_HABILITADA`), canales preparados para WebRTC.
+- **Estructura por perfil**: «Mis consentimientos», «Gestión Social» (recepción de solicitudes, casos sociales, necesidades) e «Indicadores» para Coordinación.
+- **Demostración identificada**: aviso en el ingreso y en el encabezado (`MODO_DEMO`); la contraseña de demostración no se acepta como contraseña real ni permite ingresar fuera de la demostración.
+- **Kit para Mac** en carpeta nueva, base `cgreg_demo_brigada`, bases anteriores protegidas.
+
+### Pendiente o requiere decisión
+- **Autorización institucional para WhatsApp** en producción (`TELEATENCION_WHATSAPP_HABILITADA=true`) y definición de qué teléfonos usarán los profesionales.
+- **Videollamada dentro de CGREG (WebRTC)**: arquitectura preparada, no implementada.
 
 ## Funcionalidad previa (se conserva)
 

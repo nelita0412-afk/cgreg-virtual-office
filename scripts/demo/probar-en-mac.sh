@@ -16,7 +16,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-BASE=${BASE:-cgreg_demo}
+BASE=${BASE:-cgreg_demo_brigada}
+RAMA_ESPERADA=brigada-teleatencion
+# Bases DEMO de pruebas anteriores: nunca se usan ni se modifican desde este kit, aunque se autorice reutilizar.
+BASES_PROTEGIDAS="cgreg_demo cgreg_demo_prueba_20261108"
 ENV_DEMO=${ENV_DEMO:-./.env.demo}
 PUERTO_INICIAL=${PUERTO:-4000}
 IPHONE=false
@@ -36,7 +39,10 @@ falta() { printf '\n\033[1;31m✗ %s\033[0m\n' "$1"; exit 1; }
 # ------------------------------------------------ Requisitos ------------------------------------------------
 command -v node >/dev/null || falta "Falta Node.js. Instálelo con:  brew install node"
 command -v psql >/dev/null || falta "Falta PostgreSQL. Instálelo con:  brew install postgresql@16 && brew services start postgresql@16 && brew link postgresql@16 --force"
-[ "$(git branch --show-current)" = "app-movil-2.0" ] || falta "Cambie a la rama de prueba:  git checkout app-movil-2.0"
+[ "$(git branch --show-current)" = "${RAMA_ESPERADA}" ] || falta "Este kit es de la rama ${RAMA_ESPERADA}. Cambie de rama:  git checkout ${RAMA_ESPERADA}"
+for protegida in ${BASES_PROTEGIDAS}; do
+  [ "${BASE}" != "${protegida}" ] || falta "La base «${BASE}» pertenece a una prueba anterior y está protegida: no se usa ni se modifica. Use otra, por ejemplo:  BASE=cgreg_demo_brigada2 ./scripts/demo/probar-en-mac.sh"
+done
 [[ "${BASE}" =~ ^[a-z0-9_]*demo[a-z0-9_]*$ ]] || falta "El nombre de la base debe contener «demo» (minúsculas, números y _): ${BASE}"
 pg_isready -q -h localhost || falta "PostgreSQL no está en marcha. Ejecute:  brew services start postgresql@16"
 
@@ -49,7 +55,7 @@ if [ "${existe}" = "1" ]; then
    · Si es la base DEMO creada antes por este script y autoriza reutilizarla:
        ./scripts/demo/probar-en-mac.sh --autorizo-reutilizar
    · Si prefiere una base nueva, elija otro nombre (debe contener «demo»):
-       BASE=cgreg_demo2 ./scripts/demo/probar-en-mac.sh"
+       BASE=cgreg_demo_brigada2 ./scripts/demo/probar-en-mac.sh"
   fi
   psql -h localhost -d "${BASE}" -tAc "select 1 from public.${MARCA}" 2>/dev/null | grep -q 1 \
     || falta "La base «${BASE}» no fue creada por este script de demostración. No se usará ni se modificará."
@@ -69,6 +75,8 @@ DATA_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toS
 COOKIE_SECURE=false
 TRUST_PROXY=true
 SHEETS_SYNC_ENABLED=false
+MODO_DEMO=true
+TELEATENCION_WHATSAPP_HABILITADA=true
 EOF
 fi
 
@@ -76,6 +84,8 @@ set -a; . "${ENV_DEMO}"; set +a
 # Google Sheets: siempre desactivado y sin credenciales en este proceso.
 export SHEETS_SYNC_ENABLED=false
 unset GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 GOOGLE_APPLICATION_CREDENTIALS
+# Entorno de demostración identificado en pantalla; WhatsApp habilitado solo para probar el flujo (números que usted registre).
+export MODO_DEMO=true TELEATENCION_WHATSAPP_HABILITADA=true
 
 # DATABASE_URL: solo PostgreSQL local y exactamente la base DEMO.
 DATABASE_URL="${DATABASE_URL}" BASE="${BASE}" node -e '
@@ -153,6 +163,6 @@ if [ "${IPHONE}" = true ]; then
   printf '   QR: abra el enlace en Chrome de la Mac → ícono «Compartir» de la barra de direcciones → «Crear código QR».\n'
 fi
 
-printf '\nUsuarios de prueba (contraseña Demo-CGREG-2026): marianella.becerra@demo.cgreg (Coordinación + Trabajo Social) · hugo@demo.cgreg · andrea@demo.cgreg · diego@demo.cgreg · demetrio@demo.cgreg · autoridad@demo.cgreg\n'
+printf '\nUsuarios de prueba — contraseña FICTICIA solo de demostración: Demo-CGREG-2026\n  marianella.becerra@demo.cgreg (Coordinación + Trabajo Social) · coordinacion@demo.cgreg · gabriel · sofia · betsabe · maria · hugo · sally · andrea · diego · demetrio · autoridad · auditoria · admin  (todas @demo.cgreg)\n'
 printf 'Para detener todo: Ctrl + C\n'
 wait "${SERVIDOR}"

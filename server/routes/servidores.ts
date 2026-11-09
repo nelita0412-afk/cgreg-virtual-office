@@ -18,16 +18,17 @@ export function servidoresRoutes(app: FastifyInstance, ctx: AppCtx) {
   app.get('/api/servidores', { preHandler: requirePerm('servidores.ver_todos', 'servidores.ver_asignados') }, async (req) => {
     const user = u(req);
     const q = parse(
-      z.object({ q: z.string().max(100).optional(), sin_asignar: z.enum(['1', '0']).optional(), vista: z.enum(['prioritaria', 'pendiente_verificacion', 'base_maestra']).optional() }),
+      z.object({ q: z.string().max(100).optional(), sin_asignar: z.enum(['1', '0']).optional(), vista: z.enum(['prioritaria', 'pendiente_verificacion', 'base_maestra']).optional(), mios: z.enum(['1']).optional() }),
       req.query,
     );
-    const pid = user.rol === 'profesional' || user.rol === 'trabajo_social' ? user.profesional_id : null;
+    // `mios=1`: solo los casos asignados al registro de quien consulta (p. ej., casos sociales de la Coordinadora).
+    const pid = user.rol === 'profesional' || user.rol === 'trabajo_social' || q.mios ? user.profesional_id ?? '__sin_registro__' : null;
     const r = await db.query(
       `select s.id, s.codigo_institucional, s.nombre, s.canal_contacto, s.aviso_privacidad_aceptado, s.activo_en_fuente, s.ultima_sincronizacion,
               coalesce((select json_agg(json_build_object('profesional_id', a.profesional_id, 'nombre', p.nombre_corto)) from ops.asignaciones a join core.profesionales p on p.id = a.profesional_id where a.servidor_id = s.id and a.activa), '[]') as asignados,
               exists(select 1 from ops.contactos c where c.servidor_id = s.id and c.resultado = 'contactado') as contactado,
               exists(select 1 from ops.atenciones a where a.servidor_id = s.id and a.estado = 'atendida') as valorado,
-              exists(select 1 from ops.atenciones a where a.servidor_id = s.id and a.estado in ('programada','confirmada') and a.inicio > now()) as con_cita,
+              exists(select 1 from ops.atenciones a where a.servidor_id = s.id and a.estado in ('programada','confirmada','contacto_iniciado') and a.inicio > now()) as con_cita,
               exists(select 1 from ops.consentimientos c where c.servidor_id = s.id and c.tipo = 'teleatencion' and c.estado = 'validado' and c.revocado_at is null) as consentimiento,
               (select count(*) from ops.necesidades n where n.servidor_id = s.id and n.estado <> 'resuelta') as necesidades_abiertas,
               s.unidad, s.estado_servidor, s.en_base_maestra, s.en_santa_cruz, s.verificacion, s.origen,
@@ -91,11 +92,14 @@ export function servidoresRoutes(app: FastifyInstance, ctx: AppCtx) {
       [id],
     )).rows[0] ?? null;
     const abiertas = (await db.query(`select id, codigo, estado, canal, created_at from ops.solicitudes_atencion where servidor_id = $1 order by created_at desc`, [id])).rows;
-    const { contacto_cifrado, ...sv } = s;
+    const { contacto_cifrado, whatsapp_cifrado, whatsapp_ultimos, whatsapp_autorizado_por, ...sv } = s;
+    // WhatsApp autorizado para teleatención: solo enmascarado (el número completo se usa únicamente para el enlace del profesional).
+    const whatsapp = whatsapp_cifrado ? { autorizado: true, terminacion: `•••• ${whatsapp_ultimos}`, fuente: sv.whatsapp_fuente, autorizado_at: sv.whatsapp_autorizado_at } : { autorizado: false };
+    void whatsapp_autorizado_por;
     const contacto_declarado = contacto_cifrado && (user.rol === 'coordinacion' || nivel) ? ctx.cipher.decrypt(contacto_cifrado) : null;
     await audit(db, user, 'servidor.consulta', 'servidor', id, {}, req.ip);
     return {
-      servidor: { ...sv, contacto_declarado },
+      servidor: { ...sv, contacto_declarado, whatsapp },
       fuentes,
       asignaciones: asign,
       contactos,

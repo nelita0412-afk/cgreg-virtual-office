@@ -23,7 +23,7 @@ export async function disponibilidadDe(c: Queryable, profesionalId: string, desd
 
 export async function ocupadosDe(c: Queryable, profesionalId: string, desde: Date, hasta: Date, excluir?: string) {
   const r = await c.query(
-    `select inicio, fin from ops.atenciones where profesional_id = $1 and estado in ('programada','confirmada','en_atencion')
+    `select inicio, fin from ops.atenciones where profesional_id = $1 and estado in ('programada','confirmada','contacto_iniciado','en_atencion')
        and fin > $2 and inicio < $3 and ($4::uuid is null or id <> $4)`,
     [profesionalId, desde.toISOString(), hasta.toISOString(), excluir ?? null],
   );

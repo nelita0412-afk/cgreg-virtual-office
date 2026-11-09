@@ -38,9 +38,9 @@ describe('Registro de profesionales', () => {
     const r = await coord.get('/api/profesionales');
     expect(r.status).toBe(200);
     const de = (id: string) => r.body.find((p: any) => p.id === id);
-    // Teleatención clínica: Psicología (Gabriel, María, Hugo, Sofía, Betsabé, Sally y el registro previo de Zally) y Psiquiatría.
+    // Teleatención clínica: Psicología (Gabriel, María, Hugo, Sofía, Betsabé y Sally) y Psiquiatría.
     expect(r.body.filter((p: any) => p.es_teleatencion && p.id !== 'medico-prueba').map((p: any) => p.id).sort()).toEqual(
-      ['betsabe-cordova', 'diego-estrella', 'gabriel-ordonez', 'hugo-cuenca', 'maria-alcivar', 'sally-tinizaray', 'sofia-guerra', 'zally-pamela'].sort(),
+      ['betsabe-cordova', 'diego-estrella', 'gabriel-ordonez', 'hugo-cuenca', 'maria-alcivar', 'sofia-guerra', 'zally-pamela'].sort(),
     );
     expect(de('gabriel-ordonez').nombre).toBe('Gabriel Alexander Ordóñez Guzmán');
     expect(de('hugo-cuenca')).toMatchObject({ nombre: 'Hugo Xavier Cuenca Guerrero', especialidad: 'psicologia', funcion_brigada: 'Profesional de Salud Mental' });
@@ -48,9 +48,10 @@ describe('Registro de profesionales', () => {
     expect(de('demetrio-magallanes')).toMatchObject({ especialidad: 'epidemiologia', es_teleatencion: false, funcion_brigada: 'Apoyo Epidemiológico y Territorial' });
     expect(de('demetrio-magallanes').instituciones).toEqual(['IESS', 'Corporación Kimirina']); // descriptivas, no otorgan permisos
     expect(de('andrea-mayorga')).toMatchObject({ especialidad: 'psicologia', funcion_brigada: 'Profesional de Salud Mental · Función territorial' });
-    // Sally es un registro propio; el registro previo de Zally se conserva intacto, fuera del directorio oficial.
-    expect(de('sally-tinizaray')).toMatchObject({ nombre: 'Sally Tinizaray Soriano', especialidad: 'psicologia', en_directorio: true });
-    expect(de('zally-pamela')).toMatchObject({ nombre: 'Zally Pamela', en_directorio: false });
+    // Sally Tinizaray Soriano = «Zally Pamela»: un solo registro (identificador histórico), con el nombre oficial.
+    expect(de('zally-pamela')).toMatchObject({ nombre: 'Sally Tinizaray Soriano', especialidad: 'psicologia', en_directorio: true });
+    expect(de('sally-tinizaray')).toBeUndefined(); // duplicado consolidado y retirado (no se borró)
+    expect(r.body.filter((p: any) => /sally|zally/i.test(p.nombre))).toHaveLength(1);
     expect(de('marianella-becerra')).toMatchObject({ nombre: 'Lic. Marianella del Cisne Becerra Hernández, Espc.', especialidad: 'trabajo_social', funcion_brigada: 'Coordinación General · Trabajo Social' });
     expect(de('diego-estrella').disponibilidad_origen).toHaveLength(0); // sin horarios inventados
     const mar = de('maria-alcivar').disponibilidad_institucional;

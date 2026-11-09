@@ -19,61 +19,56 @@ brew install node postgresql@16 git
 brew services start postgresql@16 && brew link postgresql@16 --force
 ```
 
-```bash
-git clone -b app-movil-2.0 https://github.com/nelita0412-afk/cgreg-virtual-office.git
-```
+## 2. Descargar esta versión en una carpeta nueva
 
-## 2. Abrir la app en la Mac
+Se usa una carpeta independiente (`~/cgreg-brigada`): no depende de pruebas anteriores ni las modifica.
 
 ```bash
-cd cgreg-virtual-office && ./scripts/demo/probar-en-mac.sh
+git clone -b brigada-teleatencion https://github.com/nelita0412-afk/cgreg-virtual-office.git ~/cgreg-brigada
 ```
 
-Se abre sola en el navegador (normalmente `http://localhost:4000`). Ctrl + C para detener.
-Para volver a abrirla otro día con la misma base:
+## 3. Abrir la app en la Mac
 
 ```bash
-./scripts/demo/probar-en-mac.sh --autorizo-reutilizar
+cd ~/cgreg-brigada && ./scripts/demo/probar-en-mac.sh
 ```
 
-## 3. Abrirla en el iPhone (HTTPS privado con Tailscale)
-
-Una sola vez:
-1. En la Mac: `brew install --cask tailscale-app`, abra **Tailscale** e inicie sesión.
-2. En el iPhone: instale **Tailscale** desde el App Store e inicie sesión con **la misma cuenta**.
-3. En la consola de Tailscale (login.tailscale.com → **DNS**): active **MagicDNS** y **HTTPS Certificates**.
-
-Luego, en la Mac:
+Crea la base DEMO nueva `cgreg_demo_brigada` y abre la app (normalmente `http://localhost:4000`). Las bases `cgreg_demo` y `cgreg_demo_prueba_20261108` están protegidas: el script nunca las usa ni las modifica. Para volver otro día:
 
 ```bash
-./scripts/demo/probar-en-mac.sh --autorizo-reutilizar --iphone
+cd ~/cgreg-brigada && ./scripts/demo/probar-en-mac.sh --autorizo-reutilizar
 ```
 
-(Si es la primera vez y aún no creó la base, use solo `--iphone`.)
+## 4. Abrirla en el iPhone (HTTPS privado con Tailscale)
 
-La Terminal muestra un enlace `https://<su-mac>.<su-tailnet>.ts.net`. Ábralo en Safari del iPhone con Tailscale conectado.
-**QR**: abra ese enlace en Chrome de la Mac → ícono **Compartir** de la barra de direcciones → **Crear código QR**.
+Una sola vez: `brew install --cask tailscale-app`; abra Tailscale en la Mac e inicie sesión; instale Tailscale en el iPhone con la misma cuenta; en login.tailscale.com → DNS active **MagicDNS** y **HTTPS Certificates**. Luego:
 
-## 4. Instalar en la pantalla de inicio
+```bash
+cd ~/cgreg-brigada && ./scripts/demo/probar-en-mac.sh --autorizo-reutilizar --iphone
+```
+
+Abra en Safari del iPhone el enlace `https://….ts.net` que muestra la Terminal. **QR**: ese enlace en Chrome de la Mac → Compartir → Crear código QR.
+
+## Probar la teleatención por WhatsApp
+La demostración no trae números (podrían pertenecer a personas reales). Para probar: ingrese como `marianella.becerra@demo.cgreg`, abra un caso de demostración asignado a Hugo, registre **su propio** celular en «WhatsApp para teleatención» marcando la autorización, y luego ingrese como `hugo@demo.cgreg`: en la cita verá «Contactar por WhatsApp» e «Iniciar teleatención».
+
+## 5. Instalar en la pantalla de inicio
 - **iPhone (Safari)**: Compartir → **Agregar a inicio** → Agregar. Se abre a pantalla completa como una app.
 - **Android (Chrome)**: botón **Instalar** en la app, o menú ⋮ → **Instalar aplicación**.
 
 ## Compatibilidad con macOS
-El script funciona con el Bash que trae macOS (3.2) y con versiones nuevas. En el Bash de macOS, un texto como `«$BASE»` hacía que el `»` se leyera como parte del nombre de la variable (`BASE?: unbound variable`); por eso todas las variables del script van entre llaves (`${BASE}`). Una prueba automática (`tests/scripts-demo.test.ts`) impide que vuelva a ocurrir.
+Funciona con el Bash que trae macOS (3.2). Todas las variables del script van entre llaves (`${BASE}`); `tests/scripts-demo.test.ts` lo verifica.
 
-Para usar otro nombre de base (siempre nueva y con «demo» en el nombre):
+## Usuarios de prueba (contraseña FICTICIA `Demo-CGREG-2026`)
 
-```bash
-BASE=cgreg_demo_prueba_20261108 ./scripts/demo/probar-en-mac.sh
-```
+Esta contraseña solo funciona en el entorno de demostración (`MODO_DEMO=true`): la plataforma la rechaza como contraseña nueva y no permite ingresar con ella fuera de la demostración.
 
-## Usuarios de prueba (contraseña `Demo-CGREG-2026`)
 | Perfil | Correo |
 |---|---|
 | Coordinadora (Coordinación General + Trabajo Social) | marianella.becerra@demo.cgreg |
 | Coordinación General (cuenta genérica de demostración) | coordinacion@demo.cgreg |
 | Salud Mental con atención en curso (registro por pasos) | hugo@demo.cgreg |
-| Salud Mental | gabriel@demo.cgreg · sofia@demo.cgreg · betsabe@demo.cgreg · maria@demo.cgreg · sally@demo.cgreg |
+| Salud Mental | gabriel@demo.cgreg · sofia@demo.cgreg · betsabe@demo.cgreg · maria@demo.cgreg · sally@demo.cgreg (Sally Tinizaray Soriano) |
 | Salud Mental + función territorial | andrea@demo.cgreg |
 | Psiquiatría | diego@demo.cgreg |
 | Apoyo Epidemiológico y Territorial | demetrio@demo.cgreg |

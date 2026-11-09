@@ -90,7 +90,7 @@ export function hceRoutes(app: FastifyInstance, ctx: AppCtx) {
         [x.id],
       )).rows.map(({ contenido_cifrado, ...r }) => ({ ...r, contenido: dec(contenido_cifrado) }));
       const rows = (await db.query(
-        `select e.*, p.nombre as autor_nombre, a.codigo as atencion_codigo, uv.nombre as validada_por_nombre
+        `select e.*, core.profesional_canonico(e.autor_profesional_id) as autor_canonico, p.nombre as autor_nombre, a.codigo as atencion_codigo, uv.nombre as validada_por_nombre
            from clinical.entradas e join core.profesionales p on p.id = e.autor_profesional_id
            left join ops.atenciones a on a.id = e.atencion_id left join core.usuarios uv on uv.id = e.validada_por
           where e.expediente_id = $1 order by e.fecha_hora desc`,
@@ -102,7 +102,7 @@ export function hceRoutes(app: FastifyInstance, ctx: AppCtx) {
         [rows.map((r) => r.id)],
       )).rows;
       entradas = rows.map((e) => {
-        const visible = e.confidencialidad === 'equipo_clinico' || e.autor_profesional_id === user.profesional_id;
+        const visible = e.confidencialidad === 'equipo_clinico' || e.autor_canonico === user.profesional_id;
         return {
           id: e.id,
           atencion_id: e.atencion_id,
@@ -111,7 +111,7 @@ export function hceRoutes(app: FastifyInstance, ctx: AppCtx) {
           tipo: e.tipo,
           fecha_hora: e.fecha_hora,
           autor: e.autor_nombre,
-          es_autor: e.autor_profesional_id === user.profesional_id,
+          es_autor: e.autor_canonico === user.profesional_id,
           confidencialidad: e.confidencialidad,
           estado: e.estado,
           version: e.version_actual,
@@ -203,9 +203,9 @@ export function hceRoutes(app: FastifyInstance, ctx: AppCtx) {
     const { id } = req.params as { id: string };
     const b = parse(z.object({ contenido: z.string().trim().min(3).max(8000), motivo: z.string().trim().min(3).max(300) }), req.body);
     const r = await tx(db, async (c) => {
-      const e = (await c.query(`select e.*, x.servidor_id from clinical.entradas e join clinical.expedientes x on x.id = e.expediente_id where e.id = $1`, [id])).rows[0];
+      const e = (await c.query(`select e.*, core.profesional_canonico(e.autor_profesional_id) as autor_canonico, x.servidor_id from clinical.entradas e join clinical.expedientes x on x.id = e.expediente_id where e.id = $1`, [id])).rows[0];
       if (!e) throw notFound();
-      if (e.autor_profesional_id !== user.profesional_id) throw forbidden('Solo el autor de la entrada puede registrar adendas.');
+      if (e.autor_canonico !== user.profesional_id) throw forbidden('Solo el autor de la entrada puede registrar adendas.');
       if (e.estado !== 'validada') throw conflict('La entrada aún es un borrador: puede editarla directamente.');
       const hash = sha256(JSON.stringify({ entrada: id, entrada_hash: e.hash_contenido, contenido: b.contenido, motivo: b.motivo, autor: user.profesional_id }));
       const a = await c.query(
@@ -249,7 +249,7 @@ export function hceRoutes(app: FastifyInstance, ctx: AppCtx) {
         where ($1::text is null
                or exists (select 1 from ops.asignaciones a where a.servidor_id = x.servidor_id and a.profesional_id = $1 and a.activa)
                or exists (select 1 from ops.derivaciones d where d.servidor_id = x.servidor_id and (d.especialista_id = $1 or d.profesional_derivante_id = $1))
-               or exists (select 1 from clinical.entradas e where e.expediente_id = x.id and e.autor_profesional_id = $1))
+               or exists (select 1 from clinical.entradas e where e.expediente_id = x.id and core.profesional_canonico(e.autor_profesional_id) = $1))
           and ($2::uuid is null or x.servidor_id = $2)
         order by x.updated_at desc limit 500`,
       [pid, q.servidor ?? null],

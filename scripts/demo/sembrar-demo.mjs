@@ -25,10 +25,8 @@ const usuarios = [
   ['hugo@demo.cgreg', null, 'profesional', 'hugo-cuenca'],
   ['sofia@demo.cgreg', null, 'profesional', 'sofia-guerra'],
   ['betsabe@demo.cgreg', null, 'profesional', 'betsabe-cordova'],
-  // Registro previo que no figura en el directorio oficial: su cuenta se conserva tal cual (no se reasigna ni se fusiona).
-  ['zally@demo.cgreg', null, 'profesional', 'zally-pamela'],
-  // Sally Tinizaray Soriano: cuenta propia, vinculada solo a su registro.
-  ['sally@demo.cgreg', null, 'profesional', 'sally-tinizaray'],
+  // Sally Tinizaray Soriano: una sola cuenta, vinculada a su identificador histórico «zally-pamela» (migración 008).
+  ['sally@demo.cgreg', null, 'profesional', 'zally-pamela'],
   // Apoyo Epidemiológico y Territorial: sin permisos clínicos por defecto.
   ['demetrio@demo.cgreg', null, 'epidemiologia', 'demetrio-magallanes'],
   ['diego@demo.cgreg', null, 'profesional', 'diego-estrella'],
@@ -107,7 +105,7 @@ if (!yaSembrado) {
   for (const p of await U.admin.get('/api/consentimientos/plantillas'))
     if (p.estado === 'borrador') await U.admin.post(`/api/consentimientos/plantillas/${p.id}/aprobar`, { referencia: 'DEMO — aprobación ficticia, NO oficial' });
   // Casos individuales solo para quien interviene con la persona (Demetrio, epidemiológico, no lleva casos).
-  const asign = { 1: 'gabriel-ordonez', 2: 'gabriel-ordonez', 3: 'gabriel-ordonez', 4: 'maria-alcivar', 5: 'maria-alcivar', 6: 'hugo-cuenca', 7: 'sofia-guerra', 8: 'betsabe-cordova', 9: 'zally-pamela', 10: 'sally-tinizaray', 12: 'andrea-mayorga' };
+  const asign = { 1: 'gabriel-ordonez', 2: 'gabriel-ordonez', 3: 'gabriel-ordonez', 4: 'maria-alcivar', 5: 'maria-alcivar', 6: 'hugo-cuenca', 7: 'sofia-guerra', 8: 'betsabe-cordova', 9: 'zally-pamela', 10: 'zally-pamela', 12: 'andrea-mayorga' };
   for (const [n, p] of Object.entries(asign)) await C.post(`/api/servidores/${S[n].id}/asignaciones`, { profesional_id: p });
   // Consentimientos electrónicos (firma ficticia por la página pública)
   const consentir = async (pro, n, servicio) => {
@@ -134,7 +132,7 @@ if (!yaSembrado) {
   };
   await atender(U.gabriel, 'gabriel-ordonez', 1, { resumen: 'DEMO · Primera sesión de acompañamiento (contenido ficticio).', motivo_consulta: 'DEMO · Malestar tras la emergencia (ficticio).', intervencion: 'Primeros auxilios psicológicos (ejemplo).', plan: 'Seguimiento en una semana.' });
   await atender(U.gabriel, 'gabriel-ordonez', 2, { resumen: 'DEMO · Valoración inicial (contenido ficticio).', plan: 'Derivar a valoración psiquiátrica (ejemplo).' });
-  await atender(U.sally, 'sally-tinizaray', 10, { resumen: 'DEMO · Primera sesión con la familia (contenido ficticio).', recomendaciones: 'Pautas de acompañamiento (ejemplo).' }, false);
+  await atender(U.sally, 'zally-pamela', 10, { resumen: 'DEMO · Primera sesión con la familia (contenido ficticio).', recomendaciones: 'Pautas de acompañamiento (ejemplo).' }, false);
   await atender(U.hugo, 'hugo-cuenca', 6, null, false, false); // queda EN CONSULTA → avatar en consultorio
   await U.gabriel.post('/api/seguimientos', { servidor_id: S[1].id, fecha_programada: proximo([1, 3, 5], 6, 30), nota_operativa: 'DEMO · Seguimiento semanal' });
   // Citas futuras dentro de la disponibilidad real
@@ -177,7 +175,7 @@ if (!yaSembrado) {
   // Debriefing en curso y capacitación programada
   const deb = await C.post('/api/debriefings', { titulo: 'DEMO · Debriefing equipo territorial', facilitador_id: 'betsabe-cordova', grupo_destinatario: 'DEMO · Equipo DECE ficticio', inicio: DateTime.now().plus({ minutes: 1 }).toUTC().toISO(), fin: DateTime.now().plus({ hours: 3 }).toUTC().toISO(), participantes_previstos: 8 });
   await U.betsabe.post(`/api/debriefings/${deb.id}/iniciar`);
-  await C.post('/api/capacitaciones', { tema: 'primeros_auxilios_psicologicos', titulo: 'DEMO · Taller de primeros auxilios psicológicos', facilitador_id: 'sally-tinizaray', publico_objetivo: 'DEMO · Docentes ficticios', institucion: 'Unidad Educativa Ficticia', inicio: proximo([1, 2, 3, 4, 5], 9, 0), duracion_min: 90, participantes_previstos: 25 });
+  await C.post('/api/capacitaciones', { tema: 'primeros_auxilios_psicologicos', titulo: 'DEMO · Taller de primeros auxilios psicológicos', facilitador_id: 'zally-pamela', publico_objetivo: 'DEMO · Docentes ficticios', institucion: 'Unidad Educativa Ficticia', inicio: proximo([1, 2, 3, 4, 5], 9, 0), duracion_min: 90, participantes_previstos: 25 });
   log('Datos sembrados.');
 }
 // Brigada reorganizada (idempotente, también sobre una base demo ya sembrada): casos sociales de la Coordinadora y

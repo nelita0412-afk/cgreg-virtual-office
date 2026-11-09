@@ -47,7 +47,7 @@ function Emergencia({ texto }: { texto?: string }) {
 /** Atención abierta: cualquier servidor del CGREG en Santa Cruz puede solicitar atención, sin valoración previa. */
 export function SolicitarAtencion() {
   const [cfg, setCfg] = useState<{ formulario_habilitado: boolean; emergencia_texto: string } | null>(null);
-  const [f, setF] = useState({ nombre: '', identificador: '', unidad: '', contacto: '', preferencia: 'psicologia', horario: '', motivo: '', acepta_aviso: false, sitio_web: '' });
+  const [f, setF] = useState({ nombre: '', identificador: '', unidad: '', contacto: '', whatsapp: '', autoriza_whatsapp: false, preferencia: 'psicologia', horario: '', motivo: '', acepta_aviso: false, sitio_web: '' });
   const [hecho, setHecho] = useState<{ codigo: string; clave?: string; mensaje: string } | null>(null);
   useEffect(() => {
     pub('GET', '/api/publico/config').then(setCfg).catch(() => setCfg({ formulario_habilitado: false, emergencia_texto: '' }));
@@ -61,6 +61,8 @@ export function SolicitarAtencion() {
         horario: f.horario || undefined,
         motivo: f.motivo || undefined,
         acepta_aviso: f.acepta_aviso || undefined,
+        whatsapp: f.whatsapp.trim() || undefined,
+        autoriza_whatsapp: f.whatsapp.trim() ? f.autoriza_whatsapp : undefined,
       }),
     (r) => setHecho(r),
   );
@@ -94,6 +96,17 @@ export function SolicitarAtencion() {
           <Field label="Identificador institucional (si lo conoce)" hint="Código del distributivo. Ayuda a verificar su vínculo."><input className="input" value={f.identificador} onChange={set('identificador')} /></Field>
           <Field label="Unidad o área (opcional)"><input className="input" value={f.unidad} onChange={set('unidad')} /></Field>
           <Field label="Teléfono o correo para contactarle *"><input className="input" required minLength={6} autoComplete="tel" value={f.contacto} onChange={set('contacto')} /></Field>
+          <div className="sm:col-span-2 rounded-xl border p-3" style={{ borderColor: 'var(--line)' }}>
+            <Field label="WhatsApp para su teleatención (opcional)" hint="Si lo indica, su profesional podrá escribirle y hacer la videollamada por WhatsApp. Por ese medio no se envía información de su salud.">
+              <input className="input" inputMode="tel" autoComplete="tel" placeholder="09 9999 9999" value={f.whatsapp} onChange={set('whatsapp')} />
+            </Field>
+            {f.whatsapp.trim() && (
+              <label className="mt-2 flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={f.autoriza_whatsapp} onChange={(e) => setF({ ...f, autoriza_whatsapp: e.target.checked })} required />
+                <span>Autorizo que la Brigada de Apoyo Psicosocial me contacte por WhatsApp a este número para coordinar y realizar mi atención.</span>
+              </label>
+            )}
+          </div>
           <Field label="Servicio que prefiere">
             <select className="input" value={f.preferencia} onChange={set('preferencia')}>
               <option value="psicologia">Atención psicológica</option>

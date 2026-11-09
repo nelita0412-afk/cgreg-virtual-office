@@ -48,9 +48,9 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
     const tele = snap.filter((s) => s.es_teleatencion);
     const at = (
       await db.query(
-        `select count(*) filter (where estado in ('programada','confirmada','en_atencion','atendida','no_realizada')) as agendadas_hoy,
+        `select count(*) filter (where estado in ('programada','confirmada','contacto_iniciado','en_atencion','atendida','no_realizada')) as agendadas_hoy,
                 count(*) filter (where estado = 'atendida') as atendidas_hoy,
-                count(*) filter (where estado in ('programada','confirmada') and inicio > now()) as proximas_hoy,
+                count(*) filter (where estado in ('programada','confirmada','contacto_iniciado') and inicio > now()) as proximas_hoy,
                 count(*) filter (where estado = 'no_realizada') as no_realizadas_hoy
            from ops.atenciones where inicio between $1 and $2`,
         [ini, fin],
@@ -164,8 +164,8 @@ export function officeRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
         presencia: pr ? { estado: pr.estado, conectado: pr.conectado } : null,
       };
     }
-    const prox = (await db.query(`select inicio, tipo from ops.atenciones where profesional_id = $1 and estado in ('programada','confirmada') and inicio > now() order by inicio limit 1`, [id])).rows[0] ?? null;
-    const hoy = (await db.query(`select count(*) filter (where estado = 'atendida') as atendidas, count(*) filter (where estado in ('programada','confirmada','en_atencion','atendida','no_realizada')) as agendadas from ops.atenciones where profesional_id = $1 and inicio between $2 and $3`, [id, ini, fin])).rows[0];
+    const prox = (await db.query(`select inicio, tipo from ops.atenciones where profesional_id = $1 and estado in ('programada','confirmada','contacto_iniciado') and inicio > now() order by inicio limit 1`, [id])).rows[0] ?? null;
+    const hoy = (await db.query(`select count(*) filter (where estado = 'atendida') as atendidas, count(*) filter (where estado in ('programada','confirmada','contacto_iniciado','en_atencion','atendida','no_realizada')) as agendadas from ops.atenciones where profesional_id = $1 and inicio between $2 and $3`, [id, ini, fin])).rows[0];
     const seg = (await db.query(`select count(*) as n from ops.seguimientos where profesional_id = $1 and estado = 'pendiente'`, [id])).rows[0];
     const rs = await reglasDe(id);
     const snap = (await presence.snapshot()).find((s) => s.profesional_id === id);

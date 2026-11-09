@@ -102,7 +102,8 @@ describe('2. Un profesional NO accede a Mi Equipo', () => {
     expect((await gabriel.get('/api/coordinacion/panel')).status).toBe(403);
     const dir = await gabriel.get('/api/directorio');
     expect(dir.status).toBe(200);
-    expect(dir.body.find((p: any) => p.id === 'zally-pamela')).toBeUndefined(); // solo el directorio oficial
+    expect(dir.body.find((p: any) => p.id === 'sally-tinizaray')).toBeUndefined(); // duplicado consolidado: no aparece
+    expect(dir.body.filter((p: any) => /sally|zally/i.test(p.nombre)).map((p: any) => [p.id, p.nombre])).toEqual([['zally-pamela', 'Sally Tinizaray Soriano']]);
     expect(Object.keys(dir.body[0]).sort()).toEqual(
       ['color', 'disponibilidad_derivacion', 'es_teleatencion', 'especialidad', 'experiencia', 'funcion_brigada', 'id', 'instituciones', 'modalidad', 'nombre', 'nombre_corto', 'orden', 'perfil', 'titulo'].sort(),
     );
@@ -186,11 +187,13 @@ describe('6. Coordinación ejerce Trabajo Social con la misma cuenta', () => {
     const otro = await crearUsuario(b, 'otra@brigada.ec', 'profesional', null);
     expect((await admin.post(`/api/admin/usuarios/${otro}/vincular`, { profesional_id: 'gabriel-ordonez', motivo: 'Registro con cuenta' })).status).toBe(409);
     expect((await admin.post(`/api/admin/usuarios/${otro}/vincular`, { profesional_id: 'demetrio-magallanes', motivo: 'Rol incompatible' })).status).toBe(409);
-    expect((await admin.post(`/api/admin/usuarios/${otro}/vincular`, { profesional_id: 'sally-tinizaray', motivo: 'Alta de Sally Tinizaray' })).status).toBe(200);
+    // El duplicado consolidado no admite vínculos: se indica el registro canónico.
+    const retirado = await admin.post(`/api/admin/usuarios/${otro}/vincular`, { profesional_id: 'sally-tinizaray', motivo: 'Intento sobre el duplicado' });
+    expect(retirado.status).toBe(409);
+    expect(retirado.body.error).toContain('zally-pamela');
+    expect((await admin.post(`/api/admin/usuarios/${otro}/vincular`, { profesional_id: 'zally-pamela', motivo: 'Alta de Sally Tinizaray Soriano' })).status).toBe(200);
     const sally = (await b.ctx.db.query(`select profesional_id from core.usuarios where id = $1`, [otro])).rows[0];
-    expect(sally.profesional_id).toBe('sally-tinizaray');
-    const zally = (await b.ctx.db.query(`select count(*)::int n from core.usuarios where profesional_id = 'zally-pamela'`)).rows[0].n;
-    expect(zally).toBe(0); // nada se asoció a otro registro
+    expect(sally.profesional_id).toBe('zally-pamela');
   });
 });
 

@@ -17,6 +17,8 @@ import { WifiOff } from 'lucide-react';
 const Comando = lazy(() => import('./pages/Comando'));
 const Equipo = lazy(() => import('./pages/Equipo'));
 const Directorio = lazy(() => import('./pages/Directorio'));
+const GestionSocial = lazy(() => import('./pages/GestionSocial'));
+const MisConsentimientos = lazy(() => import('./pages/MisConsentimientos'));
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Servidores = lazy(() => import('./pages/Servidores'));
 const ServidorDetalle = lazy(() => import('./pages/ServidorDetalle'));
@@ -130,6 +132,8 @@ function App() {
         <Route path="inicio" element={g(['oficina.ver'], <Inicio />)} />
         <Route path="oficina" element={g(['oficina.entrar'], <Oficina />)} />
         <Route path="directorio" element={g(['directorio.ver'], <Directorio />)} />
+        <Route path="gestion-social" element={g(['social.registrar'], <GestionSocial />)} />
+        <Route path="consentimientos" element={g(['consentimientos.gestionar'], <MisConsentimientos />)} />
         <Route path="comando" element={g(['indicadores.agregados'], <Comando />)} />
         <Route path="equipo" element={g(['equipo.ver'], <Equipo />)} />
         <Route path="agenda" element={g(['agenda.ver_todas', 'agenda.propia'], <Agenda />)} />

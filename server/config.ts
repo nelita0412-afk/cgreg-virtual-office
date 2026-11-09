@@ -39,6 +39,13 @@ const schema = z.object({
   /** Acepta la «constancia profesional» (registro sin documento) como consentimiento válido. Por defecto NO. */
   CONSENTIMIENTO_CONSTANCIA_PROFESIONAL: z.enum(['true', 'false']).default('false'),
   FORMULARIO_PUBLICO_HABILITADO: z.enum(['true', 'false']).default('true'),
+  /**
+   * Teleatención por WhatsApp: contacto y videollamada MANUALES desde el WhatsApp del profesional. Requiere autorización
+   * institucional para usar ese canal; por defecto desactivado. La plataforma no inicia llamadas por sí misma.
+   */
+  TELEATENCION_WHATSAPP_HABILITADA: z.enum(['true', 'false']).default('false'),
+  /** Entorno de demostración: muestra el aviso «datos ficticios» en la interfaz. */
+  MODO_DEMO: z.enum(['true', 'false']).default('false'),
   DOCUMENTO_MAX_MB: z.coerce.number().min(1).max(25).default(10),
   CONSENTIMIENTO_TOKEN_HORAS: z.coerce.number().min(1).max(720).default(72),
   /** Notificaciones push de la app instalable (Web Push). Sin claves, solo hay notificaciones dentro de la app. */

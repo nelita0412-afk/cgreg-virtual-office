@@ -221,7 +221,7 @@ export function agendaRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
     const nuevo = await tx(db, async (c) => {
       const at = await cargarAtencion(c, id);
       if (user.rol === 'profesional') exigirPropietario(user, at);
-      if (!['programada', 'confirmada'].includes(at.estado)) throw conflict('Solo se pueden reprogramar citas programadas o confirmadas.');
+      if (!['programada', 'confirmada', 'contacto_iniciado'].includes(at.estado)) throw conflict('Solo se pueden reprogramar citas programadas o confirmadas.');
       await c.query(`update ops.atenciones set estado='reprogramada', updated_at=now() where id=$1`, [id]);
       await historial(c, id, at.estado, 'reprogramada', user.id, b.motivo);
       const nid = await programar(
@@ -244,7 +244,7 @@ export function agendaRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
     await tx(db, async (c) => {
       const at = await cargarAtencion(c, id);
       if (user.rol === 'profesional') exigirPropietario(user, at);
-      if (!['programada', 'confirmada', 'pendiente'].includes(at.estado)) throw conflict('Estado no válido para marcar como no realizada.');
+      if (!['programada', 'confirmada', 'contacto_iniciado', 'pendiente'].includes(at.estado)) throw conflict('Estado no válido para marcar como no realizada.');
       await c.query(`update ops.atenciones set estado='no_realizada', motivo_no_realizada=$2, updated_at=now() where id=$1`, [id, b.motivo]);
       await historial(c, id, at.estado, 'no_realizada', user.id, b.motivo);
       await audit(c, user, 'agenda.no_realizada', 'atencion', id, { motivo: b.motivo }, req.ip);
@@ -332,11 +332,11 @@ export function agendaRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
   app.post('/api/atenciones/:id/iniciar', { preHandler: requirePerm('atenciones.registrar') }, async (req) => {
     const user = u(req);
     const { id } = req.params as { id: string };
-    const b = parse(z.object({ urgente: z.boolean().optional(), justificacion: z.string().trim().max(1000).optional() }), req.body);
+    const b = parse(z.object({ urgente: z.boolean().optional(), justificacion: z.string().trim().max(1000).optional(), modalidad: z.enum(['videollamada_whatsapp']).optional() }), req.body);
     await tx(db, async (c) => {
       const at = await cargarAtencion(c, id);
       exigirPropietario(user, at);
-      if (!['programada', 'confirmada', 'pendiente'].includes(at.estado)) throw conflict('La atención no puede iniciarse en su estado actual.');
+      if (!['programada', 'confirmada', 'contacto_iniciado', 'pendiente'].includes(at.estado)) throw conflict('La atención no puede iniciarse en su estado actual.');
       const otra = await c.query(`select 1 from ops.atenciones where profesional_id = $1 and estado = 'en_atencion'`, [at.profesional_id]);
       if (otra.rows[0]) throw conflict('Ya tiene otra atención en curso.');
       const valido = await consentimientoVigente(c, ctx.cfg, at.servidor_id, at.tipo);
@@ -361,7 +361,8 @@ export function agendaRoutes(app: FastifyInstance, ctx: AppCtx, presence: Presen
       }
       try {
         await c.query('savepoint ini');
-        await c.query(`update ops.atenciones set estado='en_atencion', iniciada_at=now(), updated_at=now() where id=$1`, [id]);
+        // Modalidad telemática registrada al iniciar (hoy: videollamada manual por WhatsApp).
+        await c.query(`update ops.atenciones set estado='en_atencion', iniciada_at=now(), updated_at=now(), modalidad = coalesce($2, modalidad) where id=$1`, [id, b.modalidad ?? null]);
         await c.query('release savepoint ini');
       } catch (e: any) {
         await c.query('rollback to savepoint ini');
